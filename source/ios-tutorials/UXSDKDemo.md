@@ -1,33 +1,35 @@
 ---
-title: Getting Started with DJI UX SDK
-version: v4.12
-date: 2020-05-10
-github: https://github.com/DJI-Mobile-SDK-Tutorials/iOS-UXSDKDemo
-keywords: [UX SDK, Default Layout, playback, preview photos and videos, download photos and videos, delete photos and videos]
+title: Getting Started with DJI UXSDK
+version: v4.14
+date: 5-25-2021
+github: https://github.com/SamScherer1/UXSDK-Demo-Swift
+keywords: [UXSDK, Default Layout, playback, preview photos and videos, download photos and videos, delete photos and videos]
 
 ---
 
-*If you come across any mistakes or bugs in this tutorial, please let us know by sending emails to dev@dji.com. Please feel free to send us Github pull request and help us fix any issues.*
+*If you come across any mistakes in this tutorial feel free to open Github pull requests.*
 
 ---
 
-In this tutorial, you will learn how to use DJI iOS UX SDK and DJI iOS Mobile SDK to  easily create a fully functioning mini-DJI Go app, with standard DJI Go UIs and functionalities. By the end of this tutorial you will have an app that you can use to show the camera FPV view, check aircraft status, shoot photos, record videos and so on.
+In this tutorial, you will learn how to use DJI iOS UXSDK and DJI iOS Mobile SDK to easily create a fully functioning mini-DJI Go app, with standard DJI Go UIs and functionalities. By the end of this tutorial you will have an app that you can use to show the camera FPV view, check aircraft status, shoot photos, record videos and so on.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-UXSDKDemo).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/UXSDK-Demo-Swift).
+
+See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-UXSDKDemo) for an Objective C version. 
 
 We used Mavic Pro and iPad Air as an example to make this demo. Let's get started!
 
 ## Introduction
 
-DJI UX SDK is a visual framework consisting of UI Elements. It helps you simplify the creation of DJI Mobile SDK based apps in iOS. With s similar design to DJI Go, UI Elements allow you to create consistent UX between your apps and DJI apps.
+DJI UXSDK is a visual framework consisting of UI Elements. It helps you simplify the creation of DJI Mobile SDK based apps in iOS. With a similar design to DJI Go, DJI UXSDK allow you to create consistent UX between your apps and DJI apps.
 
-In addition, with the ease of use that the UX SDK provides, it frees developers to focus more on business and application logic.
+In addition, with the ease of use that the UXSDK provides, it frees developers to focus more on business and application logic.
 
-As DJI UX SDK is built on top of DJI Mobile SDK and DJIWidget, you need to use them together in your application development.
+As DJI UXSDK is built on top of DJI Mobile SDK and DJIWidget, you need to use them together in your application development.
 
-For a more in depth understanding of the DJI UX SDK, please go to the [UX SDK Introduction](../introduction/ux_sdk_introduction.html).
+For a more in depth understanding of the DJI UXSDK, please go to the [UX SDK Introduction](../introduction/ux_sdk_introduction.html).
 
-## Importing DJI SDK, UX SDK and DJIWidget with CocoaPods
+## Importing DJI SDK, UXSDK and DJIWidget with CocoaPods
 
 Now, let's create a new project in Xcode, choose the **Single View Application** template, press "Next" and enter "UXSDKDemo" in the **Product Name** field (keep the other default settings).
 
@@ -36,12 +38,15 @@ Once the project is created, let's download and import the **DJISDK.framework** 
 Replace the content of the **Podfile** with the following:
 
 ~~~
-# platform :ios, '9.0'
+platform :ios, '10.0'
 
-target 'UXSDKDemo' do
-  pod 'DJI-SDK-iOS', '~> 4.12'
-  pod 'DJI-UXSDK-iOS', '~> 4.12'
-  pod 'DJIWidget', '~> 1.6.2'
+target 'UXSDKSwiftSample' do
+  use_frameworks!
+  pod 'DJI-SDK-iOS', '~> 4.14'
+  pod 'DJI-UXSDK-iOS', '~> 4.14'
+  pod 'DJIWidget', '~> 1.6.4'
+  pod 'DJIFlySafeDatabaseResource', '~> 01.00.01.18'
+  pod 'iOS-Color-Picker'
 end
 
 ~~~
@@ -86,10 +91,11 @@ Pod installation complete! There are 2 dependencies from the Podfile and 2 total
  If an application is not activated, the aircraft will not bind (if required) or if a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled and flight will be limited to a zone of 100m diameter and 30m height to ensure that the aircraft stays within line of sight.
 
  To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.html).
+//TODO: resume here!
 
 ## Implementing the DUXDefaultLayoutViewcontroller
 
-After you finish the steps above, let's try to implement standard DJI Go UIs and functionalities with DJI's UX SDK functionalities, by just going through a very few simple steps.
+After you finish the steps above, let's try to implement standard DJI Go UIs and functionalities with DJI's UXSDK functionalities, by just going through a very few simple steps.
 
 #### Working on the Storyboard
 
@@ -113,7 +119,7 @@ Next, let's open the **DefaultLayoutViewController.h** file, import the **DJIUXS
 @end
 ~~~
 
-The **DUXDefaultLayoutViewcontroller** is a viewController designed around 5 child view controllers, and it's a fully functioning mini-DJI Go. It uses all the elements of the UX SDK to give you the foundation of your app. It includes status bar, take off, go home, camera actions buttons and camera settings, OSD dashboard, FPV live vide feed view, etc. The default layout is easily configured and adjusted.
+The **DUXDefaultLayoutViewcontroller** is a viewController designed around 5 child view controllers, and it's a fully functioning mini-DJI Go. It uses all the elements of the UXSDK to give you the foundation of your app. It includes status bar, take off, go home, camera actions buttons and camera settings, OSD dashboard, FPV live vide feed view, etc. The default layout is easily configured and adjusted.
 
 ## Application Registration
 
@@ -174,12 +180,12 @@ In the code above, we have implemented the following logic:
 
 ## Connecting to the Aircraft and Run the Project
 
-Now, please check this [Connect Mobile Device and Run Application](../application-development-workflow/workflow-run.html#connect-mobile-device-and-run-application) guide to run the application and try the mini-DJI Go features we built so far using the UX SDK!
+Now, please check this [Connect Mobile Device and Run Application](../application-development-workflow/workflow-run.html#connect-mobile-device-and-run-application) guide to run the application and try the mini-DJI Go features we built so far using the UXSDK!
 
-If you can see the live video feed and are able to test the features like in the video below, then congratulations! Using the DJI UX SDK is that easy.
+If you can see the live video feed and are able to test the features like in the video below, then congratulations! Using the DJI UXSDK is that easy.
 
 ![freeform](../images/tutorials-and-samples/iOS/UXSDKDemo/playVideo.gif)
 
 ### Summary
 
-In this tutorial, you have learned how to easily use the DJI iOS UX SDK and DJI iOS Mobile SDK to create a fully functioning mini-DJI Go app, with standard DJI Go UIs and functionalities. Hope you enjoy it!
+In this tutorial, you have learned how to easily use the DJI iOS UXSDK and DJI iOS Mobile SDK to create a fully functioning mini-DJI Go app, with standard DJI Go UIs and functionalities. Hope you enjoy it!
