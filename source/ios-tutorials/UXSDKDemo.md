@@ -91,11 +91,10 @@ Pod installation complete! There are 2 dependencies from the Podfile and 2 total
  If an application is not activated, the aircraft will not bind (if required) or if a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled and flight will be limited to a zone of 100m diameter and 30m height to ensure that the aircraft stays within line of sight.
 
  To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.html).
-//TODO: resume here!
 
 ## Implementing the DUXDefaultLayoutViewcontroller
 
-After you finish the steps above, let's try to implement standard DJI Go UIs and functionalities with DJI's UXSDK functionalities, by just going through a very few simple steps.
+After you finish the steps above, let's implement standard DJI Go functionalities, by just going through a few simple steps.
 
 #### Working on the Storyboard
 
@@ -111,72 +110,50 @@ For more details on the storyboard settings, please check the tutorial's Github 
 
 Next, let's open the **DefaultLayoutViewController.h** file, import the **DJIUXSDK** header file and change the subclass to `DUXDefaultLayoutViewcontroller` as shown below:
 
-~~~objc
-#import <DJIUXSDK/DJIUXSDK.h>
+~~~Swift
+import DJIUXSDK
 
-@interface DefaultLayoutViewController : DUXDefaultLayoutViewcontroller
+let ProductCommunicationServiceStateDidChange = "ProductCommunicationServiceStateDidChange"
 
-@end
+class DefaultLayoutViewController: DUXDefaultLayoutViewController {
 ~~~
 
 The **DUXDefaultLayoutViewcontroller** is a viewController designed around 5 child view controllers, and it's a fully functioning mini-DJI Go. It uses all the elements of the UXSDK to give you the foundation of your app. It includes status bar, take off, go home, camera actions buttons and camera settings, OSD dashboard, FPV live vide feed view, etc. The default layout is easily configured and adjusted.
 
 ## Application Registration
 
-Last, let's implement the application registration feature. Open the **DefaultLayoutViewController.m** file and implement the `DJISDKManagerDelegate` protocol as shown below:
+Last, let's implement the application registration feature. Open the **DefaultLayoutViewController.swift** file and implement the `DJISDKManagerDelegate` protocol as shown below:
 
-~~~objc
-#import "DefaultLayoutViewController.h"
-
-@interface DefaultLayoutViewController ()<DJISDKManagerDelegate>
-
-@end
+~~~Swift
+class DefaultLayoutViewController: DUXDefaultLayoutViewController, DJISDKManagerDelegate {
 ~~~
 
-Now, add to the @implementation part of **DefaultLayoutViewController** the following code:
+Now, add the following code to **DefaultLayoutViewController**:
 
-~~~objc
-@implementation DefaultLayoutViewController
-
-- (void)viewDidLoad
-{
-    [super viewDidLoad];
-
-    //Please enter your App Key in the info.plist file.
-    [DJISDKManager registerAppWithDelegate:self];
-
-}
-
-- (void)showAlertViewWithMessage:(NSString *)message
-{
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIAlertController* alertViewController = [UIAlertController alertControllerWithTitle:nil message:message preferredStyle:UIAlertControllerStyleAlert];
-        UIAlertAction* okAction = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil];
-        [alertViewController addAction:okAction];
-        UIViewController *rootViewController = [[UIApplication sharedApplication] keyWindow].rootViewController;
-        [rootViewController presentViewController:alertViewController animated:YES completion:nil];
-    });
-
-}
-
-#pragma mark DJISDKManager Delegate Methods
-- (void)appRegisteredWithError:(NSError *)error
-{
-    if (!error) {
-        [self showAlertViewWithMessage:@"Registration Success"];
-        [DJISDKManager startConnectionToProduct];
-    }else
-    {
-        [self showAlertViewWithMessage:[NSString stringWithFormat:@"Registration Error:%@", error]];
+~~~Swift
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        //Please enter your App Key in the info.plist file.
+        DJISDKManager.registerApp(with: self)
     }
-}
+
+
+    //MARK: - DJISDKManagerDelegate
+    func appRegisteredWithError(_ error: Error?) {
+        if let error = error {
+            print("Error Registering App: \(error.localizedDescription)")
+            return
+        }
+        self.connectToProduct()
+    }
 ~~~
 
 In the code above, we have implemented the following logic:
 
 1. In the `viewDidLoad` method, we invoked the `registerAppWithDelegate` method of `DJISDKManager` to make the application connect to a DJI Server through the internet. Doing this, verified the App Key and set the `DJISDKManagerDelegate` to `DefaultLayoutViewController`. For more details on registering the application, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#register-application).
 
-2. Implemented the delegate method `- (void)appRegisteredWithError:(NSError *)error` of **DJISDKManagerDelegate** to connect the application to a DJI Product by invoking the `startConnectionToProduct` method of **DJISDKManager** when registered successfully. If registration failed, showed an alert view and disabled the `connectButton`.
+2. Implemented the delegate method `appRegisteredWithError(_ error: Error?)` of **DJISDKManagerDelegate** to connect the application to a DJI Product by invoking the `startConnectionToProduct` method of **DJISDKManager** when registered successfully. If registration failed, showed an alert view and disabled the `connectButton`. TODO: (demo doesn't actually do this...)
 
 ## Connecting to the Aircraft and Run the Project
 
@@ -188,4 +165,4 @@ If you can see the live video feed and are able to test the features like in the
 
 ### Summary
 
-In this tutorial, you have learned how to easily use the DJI iOS UXSDK and DJI iOS Mobile SDK to create a fully functioning mini-DJI Go app, with standard DJI Go UIs and functionalities. Hope you enjoy it!
+In this tutorial, you have learned how to easily use the DJI iOS UXSDK and DJI iOS Mobile SDK to create a fully functioning mini-DJI Go app, with standard DJI Go UI and functionality. Hope you enjoy it!
