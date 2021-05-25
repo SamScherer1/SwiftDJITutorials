@@ -138,6 +138,20 @@ Now, add the following code to **DefaultLayoutViewController**:
         DJISDKManager.registerApp(with: self)
     }
 
+    open func connectToProduct() {
+        print("Connecting to product...")
+        if useDebugMode {
+            DJISDKManager.enableBridgeMode(withBridgeAppIP: bridgeIP)
+        } else {
+            let startedResult = DJISDKManager.startConnectionToProduct()
+            
+            if startedResult {
+                print("Connecting to product started successfully!")
+            } else {
+                print("Connecting to product failed to start!")
+            }
+        }
+    }
 
     //MARK: - DJISDKManagerDelegate
     func appRegisteredWithError(_ error: Error?) {
