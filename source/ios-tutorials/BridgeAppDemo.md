@@ -1,20 +1,22 @@
 ---
-title: DJI Bridge App Tutorial
-version: v4.12
-date: 2020-05-10
-github: https://github.com/DJI-Mobile-SDK-Tutorials/DJIBridgeAppDemo
+title: DJI Bridge App Tutorial Swift
+version: v4.14
+date: 5-25-2021
+github: https://github.com/DJI-Mobile-SDK-Tutorials/DJIBridgeAppDemo TODO: update?
 keywords: [DJI Bridge App demo, remote debugging]
 ---
 
-*If you come across any mistakes or bugs in this tutorial, please let us know by sending emails to dev@dji.com. Please feel free to send us Github pull request and help us fix any issues.*
+*If you come across any mistakes in this tutorial feel free to open Github pull requests.*
 
 ---
 
-This tutorial is designed for you to gain a better understanding of the DJI Bridge App. It will teach you how to use it for app debugging by implementing the live video view and two basic camera functionalities: "Take Photo" and "Record video".
+This tutorial is designed to give you a better understanding of the DJI Bridge App. It will teach you how to use it for app debugging by implementing the live video view and two basic camera functionalities: "Take Photo" and "Record video".
 
 You can download and install the DJI SDK Bridge App from <a href="https://itunes.apple.com/us/app/sdk-bridge/id1263583917?ls=1&mt=8" target="_blank">App Store</a> to your mobile device.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/DJIBridgeAppDemo).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/BridgeDemoSwift).
+
+See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/DJIBridgeAppDemo) for an Objective C version. 
 
 ## Introduction
 
@@ -28,26 +30,26 @@ As you see above, the Bridge App and the iOS Device or Xcode Simulator should wo
 
 ### Signal Light
 
-At the top of the screen, there are two signal lights, which represent the connection between the bridge app and the remote controller or your application. When the bridge app connect to the remote controller successfully, the **RC light** will turn green. Similarly, when the bridge app connect to your app successfully, the **App Light** will turn green too.
+At the top of the screen, there are two signal lights, which represent the connection between the bridge app and the remote controller or your application. When the bridge app connects to the remote controller successfully, the **RC light** will turn green. Similarly, when the bridge app connects to your app successfully, the **App Light** will turn green too.
 
 ![signalLight](../images/tutorials-and-samples/iOS/BridgeAppDemo/toolScreenshot.png)
 
 ### TCP Connection
 
-The bridge app uses TCP sockets to communicate with your app. It use **Debug Id** to distinguish between different bridge apps running on different mobile devices.
+The bridge app uses TCP sockets to communicate with your app. It uses **Debug Id** to distinguish between different bridge apps running on different mobile devices.
 
-TCP connection is stable and supports security network, which means your local network has firewall. The debug ID will change in different IP addresses.
+TCP connections are stable and support secure networks, which means your local network has firewall. The debug ID will change for different IP addresses.
 
-Now try to open the bridge app, and connect your mobile device to the remote controller using usb cable, you should see the RC Light turn green!
+Now try to open the bridge app, and connect your mobile device to the remote controller using a usb cable. You should see the RC Light turn green!
 
 > **Note**:
 >
-> If you connect the bridge app to the RC and the RC light is still red, you may need to restart the app and try again. It should works.
+> If you connect the bridge app to the RC and the RC light is still red, you may need to restart the app and try again. It should work.
 >
 
 ### Link Reset
 
-   If the bridge app cannot connect to your app successfully because of switching your mobile device's wifi network or other unknown situations, you can press the **Link Reset** button at the bottom to force restart the TCP service to refresh the Debug ID.
+   If the bridge app cannot connect to your app successfully because of switching your mobile device's wifi network or other unknown situations, you can press the **Link Reset** button at the bottom to force restart the TCP service to refresh the Debug ID. TODO: link reset doesn't exist anymore, right?
 
 ## Importing the DJI SDK
 
@@ -59,7 +61,7 @@ Once the project is created, let's import the **DJISDK.framework** to it. If you
 
  For DJI SDK mobile application used in China, it's required to activate the application and bind the aircraft to the user's DJI account.
 
- If an application is not activated, the aircraft not bound (if required), or a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled, and flight will be limited to a zone of 100m diameter and 30m height to ensure the aircraft stays within line of sight.
+ If an application is not activated, the aircraft is not bound (if required), or a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled, and flight will be limited to a zone of 100m diameter and 30m height to ensure the aircraft stays within line of sight.
 
  To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.html).
 
@@ -69,109 +71,100 @@ Once the project is created, let's import the **DJISDK.framework** to it. If you
 
 ## Implement the Live Video View
 
-  **1**. In the Main.storyboard, add a new View Controller and call it **DJICameraViewController**. Set **DJICameraViewController** as the root View Controller for the new View Controller you just added in Main.storyboard:
+  **1**. In the Main.storyboard, add a new View Controller and call it **FPVViewController**. Set **FPVViewController** as the root View Controller for the new View Controller you just added in Main.storyboard:
 
   ![rootController](../images/tutorials-and-samples/iOS/BridgeAppDemo/cameraViewController.png)
 
-  Add a UIView inside the View Controller and set it as an IBOutlet called "**fpvPreviewView**". Then, add two UIButtons and one UISegmentedControl at the bottom of the View Control and set their IBOutlets and IBActions, as shown below:
+  Add a UIView inside the View Controller and set it as an IBOutlet called "**fpvView**". Then, add two UIButtons and one UISegmentedControl at the bottom of the View Control and set their IBOutlets and IBActions, as shown below:
 
   ![Storyboard](../images/tutorials-and-samples/iOS/BridgeAppDemo/mainStoryboard.png)
 
-  Go to **DJICameraViewController.m** file and import the **DJISDK** and **DJIVideoPreviewer** header files. Then create a **DJICamera** property and implement several delegate protocols as below:
+  Go to **FPVViewController.swift** file and import the **DJISDK** and **DJIVideoPreviewer** modules. Then implement several delegate protocols as shown below:
 
-~~~objc
-#import <DJISDK/DJISDK.h>
-#import <DJIWidget/DJIVideoPreviewer.h>
+~~~Swift
+import DJISDK
+import DJIWidget
 
-#define WeakRef(__obj) __weak typeof(self) __obj = self
-#define WeakReturn(__obj) if(__obj ==nil)return;
-
-@interface DJICameraViewController ()<DJICameraDelegate, DJISDKManagerDelegate, DJIVideoFeedListener>
-
-@property (nonatomic, strong) DJICamera* camera;
-@property (weak, nonatomic) IBOutlet UIButton *recordBtn;
-@property (weak, nonatomic) IBOutlet UISegmentedControl *changeWorkModeSegmentControl;
-@property (weak, nonatomic) IBOutlet UIView *fpvPreviewView;
-@property (weak, nonatomic) IBOutlet UILabel *currentRecordTimeLabel;
-
-- (IBAction)captureAction:(id)sender;
-- (IBAction)recordAction:(id)sender;
-- (IBAction)changeWorkModeAction:(id)sender;
+class FPVViewController: UIViewController, DJICameraDelegate, DJISDKManagerDelegate, DJIVideoFeedListener {
+    
+    @IBOutlet var recordTimeLabel: UILabel!
+    @IBOutlet var captureButton: UIButton!
+    @IBOutlet var recordButton: UIButton!
+    @IBOutlet var workModeControl: UISegmentedControl!
+    @IBOutlet var fpvView: UIView!
 ~~~
 
-  **2**. Implement the DJISDKManagerDelegate method as shown below:
-
-~~~objc
-
-- (void)showAlertViewWithTitle:(NSString *)title withMessage:(NSString *)message
-{
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
-    UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil];
-    [alert addAction:okAction];
-    [self presentViewController:alert animated:YES completion:nil];
-}
-
-- (DJICamera*) fetchCamera {
-
-    if (![DJISDKManager product]) {
-        return nil;
+  **2**. Implement the showAlertViewWithTitle method which will be used to display status messages.
+  
+~~~Swift
+    func showAlertViewWithTitle(title: String, withMessage message: String) {
+        let alert = UIAlertController.init(title: title, message: message, preferredStyle: .alert)
+        let okAction = UIAlertAction.init(title:"OK", style: .default, handler: nil)
+        alert.addAction(okAction)
+        self.present(alert, animated: true, completion: nil)
     }
+~~~
 
-    if ([[DJISDKManager product] isKindOfClass:[DJIAircraft class]]) {
-        return ((DJIAircraft*)[DJISDKManager product]).camera;
-    }else if ([[DJISDKManager product] isKindOfClass:[DJIHandheld class]]){
-        return ((DJIHandheld *)[DJISDKManager product]).camera;
+  **3**. Implement the DJISDKManagerDelegate method as shown below:
+
+~~~Swift
+
+    func fetchCamera() -> DJICamera? {
+        if let aircraft = DJISDKManager.product() as? DJIAircraft {
+            return aircraft.camera
+        }
+        return (DJISDKManager.product() as? DJIHandheld)?.camera
     }
+    
+    // MARK: DJISDKManagerDelegate Methods
+    func productConnected(_ product: DJIBaseProduct?) {
+        if let camera = fetchCamera() {
+            camera.delegate = self
+        }
 
-    return nil;
-}
-
-#pragma mark DJISDKManagerDelegate Method
-
-- (void)productConnected:(DJIBaseProduct *)product
-{
-    if(product){
-        [product setDelegate:self];
-        DJICamera *camera = [self fetchCamera];
-        if (camera != nil) {
-            camera.delegate = self;
+        DJISDKManager.userAccountManager().logIntoDJIUserAccount(withAuthorizationRequired: false) { (state, error) in
+            if let error = error {
+                print("Login failed: \(error.localizedDescription)")
+            }
         }
     }
-}
 
 ~~~
 
- The delegate method above is called when SDK detects a product. Then invoke the `fetchCamera` method to fetch the updated DJICamera object.
+The delegate method above is called when SDK detects a product. Then invoke the `fetchCamera` method to fetch the updated DJICamera object.
 
- Moreover, in the viewWillAppear method, set "fpvPreviewView" instance as a View of DJIVideoPreviewer to show the Video Stream and reset it to nil in the viewWillDisappear method:
+Next, in the viewWillAppear method, set "fpvPreviewView" instance as a View of DJIVideoPreviewer to show the Video Stream and reset it to nil in the viewWillDisappear method:
 
-~~~objc
-- (void)viewDidAppear:(BOOL)animated
-{
-    [super viewDidAppear:animated];
-
-    [[DJIVideoPreviewer instance] setView:self.fpvPreviewView];
-}
-
-- (void)viewWillDisappear:(BOOL)animated
-{
-    [super viewWillDisappear:animated];
-    [[DJIVideoPreviewer instance] setView:nil];
-    [[DJISDKManager videoFeeder].primaryVideoFeed removeListener:self];
-}
+~~~Swift
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        DJIVideoPreviewer.instance().setView(self.fpvView)
+        DJISDKManager.registerApp(with: self)
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        DJIVideoPreviewer.instance().setView(nil)
+        DJISDKManager.videoFeeder()?.primaryVideoFeed.remove(self)
+    }
 ~~~
 
   Lastly, implement the `DJIVideoFeedListener` delgate method, as shown below:
 
-~~~objc
-#pragma mark - DJIVideoFeedListener
-
--(void)videoFeed:(DJIVideoFeed *)videoFeed didUpdateVideoData:(NSData *)videoData {
-    [[DJIVideoPreviewer instance] push:videoBuffer length:(int)size];
-}
+~~~Swift
+    // MARK: DJIVideoFeedListener Method
+    func videoFeed(_ videoFeed: DJIVideoFeed, didUpdateVideoData rawData: Data) {
+        let videoData = rawData as NSData
+        let videoBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: videoData.length)
+        videoData.getBytes(videoBuffer, length: videoData.length)
+        DJIVideoPreviewer.instance().push(videoBuffer, length: Int32(videoData.length))
+    }
 ~~~
 
   The `videoFeed:didUpdateVideoData:` method is used to send the video stream to **DJIVideoPreviewer** to decode.
+
+TODO: resume here
 
 ## Enter Debug Mode
 
