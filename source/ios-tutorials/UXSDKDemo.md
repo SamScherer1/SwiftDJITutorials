@@ -142,9 +142,10 @@ Now, add the following code to **DefaultLayoutViewController**:
     //MARK: - DJISDKManagerDelegate
     func appRegisteredWithError(_ error: Error?) {
         if let error = error {
-            print("Error Registering App: \(error.localizedDescription)")
+            self.showAlertViewWith(message:"Error Registering App: \(error.localizedDescription)")
             return
         }
+        self.showAlertViewWith(message: "Registration Success")
         self.connectToProduct()
     }
 ~~~
