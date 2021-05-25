@@ -14,13 +14,13 @@ This tutorial is designed to give you a better understanding of the DJI Bridge A
 
 You can download and install the DJI SDK Bridge App from <a href="https://itunes.apple.com/us/app/sdk-bridge/id1263583917?ls=1&mt=8" target="_blank">App Store</a> to your mobile device.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/BridgeDemoSwift).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/UXSDK-Demo-Swift).
 
 See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/DJIBridgeAppDemo) for an Objective C version. 
 
 ## Introduction
 
-The design of the DJI Bridge App is simple. It's a universal app supports both iPhone and iPad. You can use it to debug app for Phantom 3 Professional, Phantom 3 Advanced, Inspire 1, M100 and other products using USB/MFI connection between RC and your app.
+The design of the DJI Bridge App is simple. It's a universal app that supports both iPhone and iPad. You can use it to debug app for Phantom 3 Professional, Phantom 3 Advanced, Inspire 1, M100 and other products using USB/MFI connection between RC and your app.
 
 ### Workflow
 
