@@ -2,7 +2,7 @@
 title: DJI Bridge App Tutorial Swift
 version: v4.14
 date: 5-25-2021
-github: https://github.com/DJI-Mobile-SDK-Tutorials/DJIBridgeAppDemo TODO: update?
+github: https://github.com/SamScherer1/BridgeDemoSwift
 keywords: [DJI Bridge App demo, remote debugging]
 ---
 
@@ -46,10 +46,6 @@ Now try to open the bridge app, and connect your mobile device to the remote con
 >
 > If you connect the bridge app to the RC and the RC light is still red, you may need to restart the app and try again. It should work.
 >
-
-### Link Reset
-
-   If the bridge app cannot connect to your app successfully because of switching your mobile device's wifi network or other unknown situations, you can press the **Link Reset** button at the bottom to force restart the TCP service to refresh the Debug ID. TODO: link reset doesn't exist anymore, right?
 
 ## Importing the DJI SDK
 
@@ -164,49 +160,39 @@ Next, in the viewWillAppear method, set "fpvPreviewView" instance as a View of D
 
   The `videoFeed:didUpdateVideoData:` method is used to send the video stream to **DJIVideoPreviewer** to decode.
 
-TODO: resume here
-
 ## Enter Debug Mode
 
 **1**. Implement the **DJISDKManagerDelegate** protocol method in the DJICameraViewController.m file's extension part. Then create a new method named **registerApp** and invoke it in the `viewDidAppear` method as shown below:
 
-~~~objc
-- (void)registerApp
-{
-    //Please enter your App key in the "DJISDKAppKey" key in info.plist file.
-    [DJISDKManager registerAppWithDelegate:self];
-}
-
-- (void)viewDidAppear:(BOOL)animated {
-    [super viewDidAppear:animated];
-    [[DJIVideoPreviewer instance] setView:self.fpvPreviewView];
-    [self registerApp];    
-}
+~~~Swift
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        DJIVideoPreviewer.instance().setView(self.fpvView)
+        DJISDKManager.registerApp(with: self)
+    }
 ~~~
 
-> Note: If you don't know how to apply as a DJI developer and get the App Key, please refer to [Get Started](../quick-start/index.html).
+> Note: If you don't know how to apply as a DJI developer and get the App Key, please refer to [Get Started](../quick-start/index.html).//TODO: test relative links like this from github markdown...
 
 **2**. Next, let's implement the DJISDKManagerDelegate method as shown below:
 
-~~~objc
-- (void)appRegisteredWithError:(NSError *)error
-{
-    NSString* message = @"Register App Successed!";
-    if (error) {
-        message = @"Register App Failed! Please enter your App Key and check the network.";
-    }else
-    {
-        NSLog(@"registerAppSuccess");
-        [DJISDKManager enableBridgeModeWithBridgeAppIP:@"Please type in Debug ID of the DJI Bridge app here"];
-        [[DJISDKManager videoFeeder].primaryVideoFeed addListener:self withQueue:nil];
-        [[DJIVideoPreviewer instance] start];
+~~~Swift
+    func appRegisteredWithError(_ error: Error?) {
+        var message = "App registration succeeded!"
+        if let _ = error {
+            message = "App registration failed! Please enter your app key and check the network."
+        } else {
+            DJISDKManager.enableBridgeMode(withBridgeAppIP: 192.168.128.169)
+            DJISDKManager.videoFeeder()?.primaryVideoFeed.add(self, with: nil)
+            DJIVideoPreviewer.instance().start()
+        }
+        
+        self.showAlertViewWithTitle(title:"Register App", withMessage: message)
     }
-
-    [self showAlertViewWithTitle:@"Register App" withMessage:message];
-}
 ~~~
 
-The delegate method above gets called when the app is registered. If the registration is successful, we can call the `enableBridgeModeWithBridgeAppIP:` class method of **DJISDKManager** to enter debug mode of the SDK by passing the **bridgeAppIP** parameter, which you can get from **the Bridge App**. Then add the listener for the `primaryVideoFeed` of `videoFeeder` in **DJISDKManager** and call the start method of the DJIVideoPreviewer class to start video decoding.
+The delegate method above gets called when the app is registered. If the registration is successful, we can call the `enableBridgeMode(withBridgeAppIP:)` class method of **DJISDKManager** to enter debug mode of the SDK by passing the **bridgeAppIP** parameter, which you can get from **the Bridge App**. Then add the listener for the `primaryVideoFeed` of `videoFeeder` in **DJISDKManager** and call the start method of the DJIVideoPreviewer class to start video decoding.
 
 **3**. Build and Run the project in Xcode. If everything is OK, you will see a "Register App Successed!" alert once the application loads.
 
@@ -244,121 +230,95 @@ Congratulations! By using the bridge app, you can now debug your app with all th
 
 ## Implement the Capture and Record function
 
-Create a BOOL property variable named **isRecording** in the DJICameraViewController.m file's extension part and implement the DJICameraDelegate method as shown below:
+Create a Bool property variable named **isRecording** in  FPVViewController.swift and implement the DJICameraDelegate method as shown below:
 
-~~~objc
-
-- (NSString *)formattingSeconds:(NSUInteger)seconds
-{
-    NSDate *date = [NSDate dateWithTimeIntervalSince1970:seconds];
-    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"mm:ss"];
-    [formatter setTimeZone:[NSTimeZone timeZoneForSecondsFromGMT:0]];
-
-    NSString *formattedTimeString = [formatter stringFromDate:date];
-    return formattedTimeString;
-}
-
--(void) camera:(DJICamera*)camera didUpdateSystemState:(DJICameraSystemState*)systemState
-{
-   self.isRecording = systemState.isRecording;
-
-    [self.currentRecordTimeLabel setHidden:!self.isRecording];
-    [self.currentRecordTimeLabel setText:[self formattingSeconds:systemState.currentVideoRecordingTimeInSeconds]];
-
-    if (self.isRecording) {
-        [self.recordBtn setTitle:@"Stop Record" forState:UIControlStateNormal];
-    }else
-    {
-        [self.recordBtn setTitle:@"Start Record" forState:UIControlStateNormal];
+~~~Swift
+    func format(seconds: UInt) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(seconds))
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "mm:ss"
+        return(dateFormatter.string(from: date))
     }
 
-    //Update UISegmented Control's state
-    if (systemState.mode == DJICameraModeShootPhoto) {
-        [self.changeWorkModeSegmentControl setSelectedSegmentIndex:0];
-    }else if (systemState.mode == DJICameraModeRecordVideo){
-        [self.changeWorkModeSegmentControl setSelectedSegmentIndex:1];
+    func camera(_ camera: DJICamera, didUpdate cameraState: DJICameraSystemState) {
+        self.isRecording = cameraState.isRecording
+        self.recordTimeLabel.isHidden = !self.isRecording
+        
+        self.recordTimeLabel.text = format(seconds: cameraState.currentVideoRecordingTimeInSeconds)
+        
+        if self.isRecording == true {
+            self.recordButton.setTitle("Stop Record", for: .normal)
+        } else {
+            self.recordButton.setTitle("Start Record", for: .normal)
+        }
+        
+        //Update UISegmented Control's State
+        if (cameraState.mode == DJICameraMode.shootPhoto) {
+            self.workModeControl.selectedSegmentIndex = 0
+        } else {
+            self.workModeControl.selectedSegmentIndex = 1
+        }
     }
-
-}
 ~~~
 
-The delegate method above is used to get the camera state from the camera on your aircraft. It will be called frequently, so you can update your user interface or camera settings accordingly here. We update the **currentRecordTimeLabel**'s text with latest recording time. Then, update the recordBtn's title with the correct state. Lastly, update the changeWorkModeSegmentControl's selected index with **systemState**'s `mode` value.
+The delegate method above is used to get the camera state from the camera on your aircraft. It will be called frequently, so you can update your user interface or camera settings accordingly here. We update the **recordTimeLabel**'s text with latest recording time. Then, update the recordButton's title with the correct state. Lastly, update the workModeControl's selected index with **cameraState**'s `mode` value.
 
 Once you finish it, let's implement the **captureAction**, **recordAction** and **changeWorkModeAction** IBAction methods, and show an alertView when error occurs as shown below:
 
-~~~objc
-- (IBAction)captureAction:(id)sender {
-
-    __weak DJICamera* camera = [self fetchCamera];
-    if (camera) {
-        WeakRef(target);
-        [camera setShootPhotoMode:DJICameraShootPhotoModeSingle withCompletion:^(NSError * _Nullable error) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [camera startShootPhotoWithCompletion:^(NSError * _Nullable error) {
-                    WeakReturn(target);
-                    if (error) {
-                        [target showAlertViewWithTitle:@"Take Photo Error" withMessage:error.description];
+~~~Swift
+    @IBAction func captureAction(_ sender: UIButton) {
+        guard let camera = fetchCamera() else {
+            return
+        }
+        
+        camera.setMode(DJICameraMode.shootPhoto, withCompletion: {(error: Error?) in
+            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 1){
+                camera.startShootPhoto(completion: { (error) in
+                    if let error = error {
+                        print("Shoot Photo Error: \(error.localizedDescription)")
                     }
-                }];
-            });
-        }];
-    }
-
-}
-
-- (IBAction)recordAction:(id)sender {
-
-    WeakRef(target);
-    if (self.isRecording) {
-
-        [self.camera stopRecordVideoWithCompletion:^(NSError * _Nullable error) {
-            WeakReturn(target);
-            if (error) {
-                [target showAlertViewWithTitle:@"Stop Record Video Error" withMessage:error.description];
+                })
             }
-        }];
-
-    }else
-    {
-        [self.camera startRecordVideoWithCompletion:^(NSError * _Nullable error) {
-            WeakReturn(target);
-            if (error) {
-                [target showAlertViewWithTitle:@"Start Record Video Error" withMessage:error.description];
-            }
-        }];
+        })
     }
-
-}
-
-- (IBAction)changeWorkModeAction:(id)sender {
-
-    UISegmentedControl *segmentControl = (UISegmentedControl *)sender;
-    __weak DJICamera* camera = [self fetchCamera];
-
-    if (camera) {
-        WeakRef(target);
-        if (segmentControl.selectedSegmentIndex == 0) { //Take photo
-
-            [camera setMode:DJICameraModeShootPhoto withCompletion:^(NSError * _Nullable error) {
-                WeakReturn(target);
-                if (error) {
-                    [target showAlertViewWithTitle:@"Set DJICameraModeShootPhoto Failed" withMessage:error.description];
+    
+    @IBAction func recordAction(_ sender: UIButton) {
+        guard let camera = fetchCamera() else { return }
+        
+        if (self.isRecording) {
+            camera.stopRecordVideo(completion: { (error: Error?) in
+                if let error = error {
+                    print("Stop Record Video Error: \(error.localizedDescription)")
                 }
-            }];
-
-        }else if (segmentControl.selectedSegmentIndex == 1){ //Record video
-
-            [camera setMode:DJICameraModeRecordVideo withCompletion:^(NSError * _Nullable error) {
-                WeakReturn(target);
-                if (error) {
-                    [target showAlertViewWithTitle:@"Set DJICameraModeRecordVideo Failed" withMessage:error.description];
+            })
+        } else {
+            camera.startRecordVideo(completion: { (error: Error?) in
+                if let error = error {
+                    print("Start Record Video Error: \(error.localizedDescription)")
                 }
-            }];
-
+            })
         }
     }
-}
+    
+    @IBAction func workModeSegmentChange(_ sender: UISegmentedControl) {
+        guard let camera = fetchCamera() else { return }
+        
+       if (sender.selectedSegmentIndex == 0) {
+            camera.setMode(DJICameraMode.shootPhoto,  withCompletion: { (error) in
+                if let error = error {
+                    print("Set ShootPhoto Mode Error: \(error.localizedDescription)")
+                }
+            })
+            
+        } else if (sender.selectedSegmentIndex == 1) {
+            camera.setMode(DJICameraMode.recordVideo,  withCompletion: { (error) in
+                if let error = error {
+                    print("Set RecordVideo Mode Error: \(error.localizedDescription)")
+                }
+            })
+        }
+    }
 ~~~
 
    Now, we can build and run the project. You can try to play with the **Record** and **Switch Camera WorkMode** functions, if everything is going well, you should see the simulator screenshot like this:
@@ -369,54 +329,43 @@ Once you finish it, let's implement the **captureAction**, **recordAction** and 
 
    Currently, we are running the app on **iOS Simulator**. Although the iOS Simulator is extremely useful during app development, when you want to ensure the required functionality and performance of an application, such as App Memory Usage, Hardware usage like Accelerometer, Gyroscope, etc, testing on an actual device is still required. For more difference between iOS Simulator and actual iOS device, please refer to <a href="http://bluetubeinc.com/blog/2014/11/ios-simulator-vs-device-testing" target="_blank"> iOS Simulator Vs. Actual Device Testing </a>.
 
-   The good thing is DJI Bridge app supports actual iOS device debugging. You can find another iOS device, like an iPhone 6, iPad air 2, etc, and connect it to your Mac. Then build and run the project on it. It should work perfectly the same to the iOS Simulator.
+   The good thing is DJI Bridge app supports actual iOS device debugging. You can find another iOS device, like an iPhone 6, iPad air 2, etc, and connect it to your Mac. Then build and run the project on it. It should work just like the iOS Simulator.
 
 ## Debug on DJI Product requires WiFI Connection
 
    For the Phantom 3 Standard and OSMO, you cannot use DJI Bridge App to debug your application because they use WiFi to connect between your application and the remote controller or the handheld device.
 
-   Actually you can work without the DJI Bridge App. Let's add a Macro named "ENABLE_DEBUG_MODE" above the DJICameraViewController.m file's extension part as shown below:
+   You can run the app without bridge mode too. Let's add properties named enableDebugMode and bridgeIP to FPVViewController as shown below:
 
-~~~objc
-#import "DJICameraViewController.h"
-#import <DJISDK/DJISDK.h>
-#import <DJIWidget/DJIVideoPreviewer.h>
-
-#define ENABLE_DEBUG_MODE 0
-
-@interface DJICameraViewController ()<DJICameraDelegate, DJISDKManagerDelegate, DJIVideoFeedListener>
-
+~~~Swift
+    fileprivate let enableDebugMode = true
+    fileprivate let bridgeIP = "192.168.128.169"
 ~~~
 
-  Then go to `- (void)appRegisteredWithError:(NSError *)error` method and replace the code with the following:
+  Then go to ` func appRegisteredWithError(_ error: Error?) ` method and replace the code with the following:
 
-~~~objc
-- (void)appRegisteredWithError:(NSError *)error
-{
-    NSString* message = @"Register App Successed!";
-    if (error) {
-        message = @"Register App Failed! Please enter your App Key and check the network.";
-    }else
-    {
-        NSLog(@"registerAppSuccess");
-
-#if ENABLE_DEBUG_MODE
-        [DJISDKManager enableBridgeModeWithBridgeAppIP:@"Please type in Debug ID of the DJI Bridge app here"];
-#else
-        [DJISDKManager startConnectionToProduct];
-#endif
-        [[DJISDKManager videoFeeder].primaryVideoFeed addListener:self withQueue:nil];
-        [[DJIVideoPreviewer instance] start];
-
+~~~Swift
+    func appRegisteredWithError(_ error: Error?) {
+        var message = "App registration succeeded!"
+        if let _ = error {
+            message = "App registration failed! Please enter your app key and check the network."
+        } else {
+            if enableDebugMode {
+                DJISDKManager.enableBridgeMode(withBridgeAppIP: bridgeIP)
+            } else {
+                DJISDKManager.startConnectionToProduct()
+            }
+            DJISDKManager.videoFeeder()?.primaryVideoFeed.add(self, with: nil)
+            DJIVideoPreviewer.instance().start()
+        }
+        
+        self.showAlertViewWithTitle(title:"Register App", withMessage: message)
     }
-
-    [self showAlertViewWithTitle:@"Register App" withMessage:message];
-}
 ~~~
 
-   As the code shown above, if you don't want to use debug mode of the SDK with DJI Bridge app, you can call `+ (void)startConnectionToProduct;` class method of DJISDKManager instead once the app registration is successful.
+   As the code shown above, if you don't want to use debug mode of the SDK with DJI Bridge app, you can call `+ (BOOL)startConnectionToProduct;` class method of DJISDKManager instead once the app registration is successful.
 
-   Finally, connect your Mac, which uses iOS Simulator to debug, or your iOS device's WiFi network to DJI Product. Build and run the application on your Mac, if everthing goes well, you should see the following screenshot for iOS Simulator:
+   Finally, connect to DJI Product. Build and run the application on your Mac, if everthing goes well, you should see the following screenshot for iOS Simulator:
 
    ![Screenshot](../images/tutorials-and-samples/iOS/BridgeAppDemo/osmoScreenshot.png)
 
@@ -424,11 +373,11 @@ Once you finish it, let's implement the **captureAction**, **recordAction** and 
 >
 >**1.** If it's the first time to run the application, which isn't registered before, you may need to connect your Mac or iOS device's WiFi to the internet and build and run the app for registration. Next time, you can connect their WiFi back to the DJI Product to debug without problems.
 >
->**2.** You may notice the video is clear without mosaic. Because the iOS device use hardware decoding for live video, which is better than software decoding.
+>**2.** You may notice the video is clear without mosaic. This is because the iOS device uses hardware decoding for live video, which is better than software decoding.
 >
 
 ### Summary
 
    Congratulations! You've learned how to use DJI Bridge App to debug your application using DJI Mobile SDK. Also, for better understanding, the tutorial shows you how to show the live video view from the DJI Product's camera and control the camera to take photo and record video too.
 
-   With DJI Bridge App, you can build your application with DJI Mobile SDK more efficiently. Hope you enjoy this tutorial, Thanks!
+   With DJI Bridge App, you can develop your application with DJI Mobile SDK more efficiently. Hope you enjoy this tutorial, Thanks!
