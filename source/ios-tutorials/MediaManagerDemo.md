@@ -117,10 +117,6 @@ class MediaManagerViewController : UIViewController, DJICameraDelegate, DJIMedia
     var videoPreviewView: UIView?
     var previewerAdapter: VideoPreviewerAdapter?
     
-    var statusAlertView : AlertView?
-    var selectedMedia : DJIMediaFile?
-    var previousOffset = UInt(0)
-    var fileData : Data?
     var statusView : DJIScrollView?
     var renderView : DJIRTPlayerRenderView?
     
@@ -332,6 +328,7 @@ Next, create two new methods: `loadMediaList` and `updateMediaList:` and invoke 
     
     func loadMediaList() {
         self.loadingIndicator.isHidden = false
+        self.view.bringSubviewToFront(self.loadingIndicator)
         if self.mediaManager?.sdCardFileListState == DJIMediaFileListState.syncing ||
            self.mediaManager?.sdCardFileListState == DJIMediaFileListState.deleting {
             print("Media Manager is busy. ")
@@ -343,10 +340,11 @@ Next, create two new methods: `loadMediaList` and `updateMediaList:` and invoke 
                     print("Fetch Media File List Success.")
                     if let mediaFileList = self?.mediaManager?.sdCardFileListSnapshot() {
                         self?.updateMediaList(mediaList:mediaFileList)
+                        self?.loadingIndicator.isHidden = true
+                        
                     }
                 }
             })
-            
         }
     }
 
@@ -372,8 +370,7 @@ Next, create two new methods: `loadMediaList` and `updateMediaList:` and invoke 
 ~~~
 
 The code above implements:
-//TODO: resume here in sublime? xcode?
-1. In the `loadMediaList` method, we first show the `loadingIndicator` and check the `fileListState` enum value of the `DJIMediaManager`. If the value is `DJIMediaFileListStateSyncing` or `DJIMediaFileListStateDeleting`, we show an NSLog to inform users that the media manager is busy. For other values, we invoke the `refreshFileListOfStorageLocation:` method of the `DJIMediaManager` to refresh the file list from the SD card. In the completion block, if there is no error, we should get a copy of the current file list by invoking the `fileListSnapshot` method of `DJIMediaManager` and initialize the `mediaFileList` variable. Then invoke the `updateMediaList:` method and pass the `mediaFileList`. Lastly, hide the `loadingIndicator` since the operation of refreshing the file list has finished.
+1. In the `loadMediaList` method, we first show the `loadingIndicator` and check the `fileListState` enum value of the `DJIMediaManager`. If the value is `DJIMediaFileListStateSyncing` or `DJIMediaFileListStateDeleting`, we show an log to inform users that the media manager is busy. For other values, we invoke the `refreshFileList(ofStorageLocation: withCompletion:)` method of `DJIMediaManager` to refresh the file list from the SD card. In the completion closure, if there is no error, we should get a copy of the current file list by invoking the `sdCardFileListSnapshot` method of `DJIMediaManager` and initialize the `mediaFileList` variable. Then invoke the `updateMediaList:` method and pass the `mediaFileList`. Finally, hide the `loadingIndicator` since the operation of refreshing the file list has finished.
 
 2. In the `updateMediaList:` method, we firstly remove all the objects in the `mediaList` array and add new objects to it from the `mediaList` array. Next, create a `mediaTaskScheduler` variable and assign it with the `taskScheduler` property of `DJIMediaManager`. Then, assign `NO` to the `suspendAfterSingleFetchTaskFailure` property of `DJIFetchMediaTaskScheduler` to prevent from suspending the scheduler when an error occurs during the execution. Moreover, invoke the `resumeWithCompletion` method of `DJIFetchMediaTaskScheduler` to resume the scheduler, which will execute tasks in the queue sequentially.
 
@@ -386,53 +383,49 @@ Lastly, we enable the `reloadBtn` and `editBtn` buttons.
 Once you finish the steps above, you should implement the following UITableView methods:
 
 ~~~swift
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return 1;
-}
-
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-
-    return self.mediaList.count;
-}
-
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-
-    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"mediaFileCell"];
-    if (cell == nil) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"mediaFileCell"];
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return 1
     }
 
-    if (self.selectedCellIndexPath == indexPath) {
-        cell.accessoryType = UITableViewCellAccessoryCheckmark;
-    }else
-    {
-        cell.accessoryType = UITableViewCellAccessoryNone;
+    func tableView(_ tableView: UITableView, numberOfRowsInSection: Int) -> Int {
+        return self.mediaList?.count ?? 0
     }
 
-    DJIMediaFile *media = [self.mediaList objectAtIndex:indexPath.row];
-    cell.textLabel.text = media.fileName;
-    cell.detailTextLabel.text = [NSString stringWithFormat:@"Create Date: %@ Size: %0.1fMB Duration:%f cusotmInfo:%@", media.timeCreated, media.fileSizeInBytes / 1024.0 / 1024.0,media.durationInSeconds, media.customInformation];
-    if (media.thumbnail == nil) {
-        [cell.imageView setImage:[UIImage imageNamed:@"dji.png"]];
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "mediaFileCell", for:indexPath)
+        
+        if self.selectedCellIndexPath == indexPath {
+            cell.accessoryType = UITableViewCell.AccessoryType.checkmark
+        } else {
+            cell.accessoryType = UITableViewCell.AccessoryType.none
+        }
+        
+        if let media = self.mediaList?[indexPath.row] {
+            cell.textLabel?.text = media.fileName
+            var detailText = "Create Date: \(media.timeCreated)"
+            detailText.append(String(format: " Size: %0.1fMB", Double(media.fileSizeInBytes) / 1024.0 / 1024.0))
+            detailText.append(" Duration: \(media.durationInSeconds)")
+            detailText.append(" CustomInfo: \(media.customInformation ?? "none")")
+            cell.detailTextLabel?.text = detailText
+            if let thumbnail = media.thumbnail {
+                cell.imageView?.image = thumbnail
+            } else {
+                cell.imageView?.image = UIImage(named: "dji.png")
+            }
+        }
+        return cell
     }
-    else
-    {
-        [cell.imageView setImage:media.thumbnail];
-    }
-
-    return cell;
-}
 ~~~
 
 In the code above, we implement the following features:
 
 1. Return `1` as the section number of the table view.
 2. Return the `count` value of the `mediaList` array as the number of rows in section.
-3. If the `UITableViewCell` selected, set its `accessoryType` as `UITableViewCellAccessoryCheckmark` to show a checkmark on the right side of the table view cell, otherwise, set the `accessoryType` as `UITableViewCellAccessoryNone` to hide the checkmark.
+3. If the `UITableViewCell` is selected, set its `accessoryType` as `UITableViewCellAccessoryCheckmark` to show a checkmark on the right side of the table view cell, otherwise, set the `accessoryType` as `UITableViewCellAccessoryNone` to hide the checkmark.
 
-Next, get the `DJIMediaFile` object in the `self.mediaList` array by using the `indexPath.row` index. Lastly, update the `textLabel`, `detailTextLabel` and `imageView` properties of table view cell according to the `DJIMediaFile` object. For the "dji.png" file, you can get it from the tutorial's Github Sample project.
+Next, get the `DJIMediaFile` object in the `self.mediaList` array by using the `indexPath.row` index. Lastly, update the `textLabel`, `detailTextLabel` and `imageView` properties of table view cell according to the `DJIMediaFile` object. You can get the "dji.png" file from the tutorial's Github Sample project.
 
-Now, to build and run the project, connect the demo application to a Mavic Pro (Please check the [Run Application](../application-development-workflow/workflow-run.html) for more details) and enter the `MediaManagerViewController`, you should be able to see something similar to the following screenshot:
+Now, to build and run the project, connect the demo application to a supported DJI product (Please check the [Run Application](../application-development-workflow/workflow-run.html) for more details) and enter the `MediaManagerViewController`, you should be able to see something similar to the following screenshot:
 
 <img src="../images/tutorials-and-samples/iOS/MediaManagerDemo/fetchMediaFiles.gif" width=100%>
 
@@ -443,52 +436,54 @@ After showing all the media files in the table view, we can start to implement t
 Now, continue to create the following properties in the class extension part:
 
 ~~~swift
-@property(nonatomic, strong) DJIAlertView* statusAlertView;
-@property(nonatomic) DJIMediaFile *selectedMedia;
-@property(nonatomic) NSUInteger previousOffset;
-@property(nonatomic) NSMutableData *fileData;
+    var statusAlertView : AlertView?
+    var selectedMedia : DJIMediaFile?
+    var previousOffset = UInt(0)
+    var fileData : Data?
 ~~~
 
 Next, initialize the properties in the `initData` method:
 
 ~~~swift
-- (void)initData
-{
-    ...
 
-    self.fileData = nil;
-    self.selectedMedia = nil;
-    self.previousOffset = 0;
-}
+    func initData() {
+
+        ...
+        
+        self.fileData = nil
+        self.selectedMedia = nil
+        self.previousOffset = 0
+    }
 ~~~
 
 Moreover, implement the table View delegate method as shown below:
 
 ~~~swift
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-
-    if (self.mediaTableView.isEditing) {
-        return;
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if self.mediaTableView.isEditing {
+            return
+        }
+        
+        self.selectedCellIndexPath = indexPath
+        
+        if let currentMedia = self.mediaList?[indexPath.row] {
+            if currentMedia !== self.selectedMedia {
+                self.previousOffset = 0
+                self.selectedMedia = currentMedia
+                self.fileData = nil
+            }
+        }
+        tableView.reloadData()
     }
-
-    self.selectedCellIndexPath = indexPath;
-
-    DJIMediaFile *currentMedia = [self.mediaList objectAtIndex:indexPath.row];
-    if (![currentMedia isEqual:self.selectedMedia]) {
-        self.previousOffset = 0;
-        self.selectedMedia = currentMedia;
-        self.fileData = nil;
-    }
-
-    [tableView reloadData];
-}
 ~~~
 
-In the code above, we assign the `selectedCellIndexPath` property with the `indexPath` value. Then get the current selected `currentMedia` object from the `mediaList` array using the `indexPath` param of this method. Moreover, check if the `currentMedia` object is the same as `self.selectedMedia` property.
+In the code above, we assign the `selectedCellIndexPath` property to the `indexPath` value. Then get the current selected `currentMedia` object from the `mediaList` array using the `indexPath` param of this method. Moreover, check if the `currentMedia` object is the same as `self.selectedMedia` property.
 
 If not, reset the `previousOffset` and `fileData` properties and update the `self.selectedMedia` object with the `currentMedia`. Lastly, invoke the `reloadData` method to reload everything in the table view.
 
 Once you finish the steps above, we continue to implement the `downloadBtnAction:` method as shown below:
+
+//TODO: resume here...
 
 ~~~swift
 - (IBAction)downloadBtnAction:(id)sender {
