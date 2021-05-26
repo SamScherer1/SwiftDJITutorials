@@ -113,8 +113,6 @@ Next, let's open the **DefaultLayoutViewController.h** file, import the **DJIUXS
 ~~~Swift
 import DJIUXSDK
 
-let ProductCommunicationServiceStateDidChange = "ProductCommunicationServiceStateDidChange"
-
 class DefaultLayoutViewController: DUXDefaultLayoutViewController {
 ~~~
 
