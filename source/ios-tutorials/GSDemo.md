@@ -1,19 +1,21 @@
 ---
-title: Creating a MapView and Waypoint Application
+title: Creating a MapView and Waypoint Application (Swift)
 version: v4.12
-date: 2020-05-10
-github: https://github.com/DJI-Mobile-SDK-Tutorials/iOS-GSDemo
-keywords: [iOS GSDemo, waypoint mission demo]
+date: 05/27/2021
+github: https://github.com/SamScherer1/iOS-GSDemo-Swift
+keywords: [iOS GSDemo, waypoint mission demo, Swift]
 ---
 
-*If you come across any mistakes or bugs in this tutorial, please let us know by sending emails to dev@dji.com. Please feel free to send us Github pull request and help us fix any issues.*
+*If you come across any mistakes in this tutorial feel free to open Github pull requests.*
 
 ---
 
 In this tutorial, you will learn how to implement the DJIWaypoint Mission feature and get familiar with the usages of DJIMissionControl.
 Also you will know how to test the Waypoint Mission API with DJI Assistant 2 Simulator too. So let's get started!
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-GSDemo).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/iOS-GSDemo-Swift).
+
+See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-GSDemo) for an Objective C version. 
 
 ## Application Activation and Aircraft Binding in China
 
@@ -33,22 +35,22 @@ Once the project is created, let's import the **DJISDK.framework** to it. If you
 
 ### 2. Creating the Map View
 
-Now, let's open the **GSDemo.xcworkspace** and delete the **ViewController.h** and **ViewController.m** files, which were created by Xcode when you created the project. Then, create a viewController named "**DJIRootViewController**" and set it as the **Root View Controller** in Main.storyboard. Moreover, drag a **MKMapView** from Object Library to **DJIRootViewController**, setup its AutoLayout constraints, and set its delegate to **DJIRootViewController**, as seen below:
+Now, let's open the **GSDemo.xcworkspace** and delete the **ViewController.swift** file, which was created by Xcode when you created the project. Then, create a viewController named "**RootViewController**" and set it as the **Root View Controller** in Main.storyboard. Moreover, drag a **MKMapView** from Object Library to **RootViewController**, setup its AutoLayout constraints, and set its delegate to **RootViewController**, as seen below:
 
 ![mkMapView](../images/tutorials-and-samples/iOS/GSDemo/mkMapView.png)
 
-After that, import the **MapKit.framework** to the project and open the "DJIRootViewController.m" file, create an IBOutlet for the MKMapView, name it "**mapView**" and link it to the MKMapView in **Main.storyboard**. Import the following header files and implement MKMapView's delegate method:
+After that, import the **MapKit.framework** to the project and open the "RootViewController.m" file, create an IBOutlet for the MKMapView, name it "**mapView**" and link it to the MKMapView in **Main.storyboard**. Import the following header files and implement MKMapView's delegate method:
 
-~~~objc
-#import "DJIRootViewController.h"
-#import <DJISDK/DJISDK.h>
-#import <MapKit/MapKit.h>
+~~~Swift
+import Foundation
+import UIKit
+import MapKit
+import CoreLocation
+import DJISDK
 
-@interface DJIRootViewController() <MKMapViewDelegate>
+class RootViewController : UIViewController, MKMapViewDelegate {
 
-@property (weak, nonatomic) IBOutlet MKMapView *mapView;
-
-@end
+}
 ~~~
 
 Now, let's build and run the project. If everything is as it should be, you should see the following screenshot:
@@ -57,158 +59,114 @@ Now, let's build and run the project. If everything is as it should be, you shou
 
 ### 3. Adding Annotations to the MapView
 
-Currently, the map view is simple. Let's add something interesting to it. Create a new **NSObject** file named **DJIMapController**, which will be used to deal with the MKAnnotations(or for our purposes, Waypoints) logic on the map. Open the DJIMapController.h file and add the following code to it:
+Currently, the map view is simple. Let's add something interesting to it. Create a new **NSObject** file named **MapController**, which will be used to deal with the MKAnnotations(or for our purposes, Waypoints) logic on the map. Open the MapController.swift file and add the following code to it:
 
-~~~objc
-#import <UIKit/UIKit.h>
-#import <MapKit/MapKit.h>
+~~~Swift
+import Foundation
+import UIKit
+import MapKit
 
-@interface DJIMapController : NSObject
+class MapController : NSObject {
 
-@property (strong, nonatomic) NSMutableArray *editPoints;
+    var editPoints : [CLLocation]
 
-/**
- *  Add Waypoints in Map View
- */
-- (void)addPoint:(CGPoint)point withMapView:(MKMapView *)mapView;
+    override init() {
+        self.editPoints = [CLLocation]()
+        super.init()
+    }
 
-/**
- *  Clean All Waypoints in Map View
- */
-- (void)cleanAllPointsWithMapView:(MKMapView *)mapView;
-
-/**
- *  Current Edit Points
- *
- *  @return Return an NSArray contains multiple CCLocation objects
- */
-- (NSArray *)wayPoints;
-
-@end
+    func add(point:CGPoint, for mapView:MKMapView) {
+        let coordinate = mapView.convert(point, toCoordinateFrom: mapView)
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        self.editPoints.append(location)
+        let annotation = MKPointAnnotation()
+        annotation.coordinate = location.coordinate
+        mapView.addAnnotation(annotation)
+    }
+    
+    func cleanAllPoints(with mapView: MKMapView) {
+        self.editPoints.removeAll()
+        let annotations = [MKAnnotation].init(mapView.annotations)
+        for annotation : MKAnnotation in annotations {
+            if annotation !== self.aircraftAnnotation {
+                mapView.removeAnnotation(annotation)
+            }
+        }
+    }
+}
 ~~~
 
 Here, we create an NSMutableArray called **editPoints** to store waypoint objects and add two methods to implement **Add** and **Remove** waypoints. The last method will be used to return the current waypoint objects on the map in an array.
 
-Let's go to the DJIMapController.m file and replace the original code with the following:
+Then, we initialize the **editPoints** array in the init method, then create MKPointAnnotation objects from CGPoint and add them to our **mapView**, and finally implement the **cleanAllPointsWithMapView** method to clean up the **editPoints** array and the annotations on the mapView.
 
-~~~objc
-#import "DJIMapController.h"
+Go back to the RootViewController.swift file and create a MapController property named **mapController**. Since we want to add annotation pins by tapping on the map, we also need to create a UITapGestureRecognizer named **tapGesture** (TODO:this is no longer a property, moved into initData()). Lastly, add a UIButton to the RootViewController scene in Main.storyboard, set its IBOutlet name as "**editBtn**", and add an IBAction method named "**editBtnAction**" for it, as shown below:
 
-@implementation DJIMapController
+~~~Swift
+    var mapController : MapController?
 
-- (instancetype)init
-{
-    if (self = [super init]) {
-        self.editPoints = [[NSMutableArray alloc] init];
+    @IBOutlet weak var editBtn: UIButton!
+
+    @IBAction func editBtnAction(_ sender: Any) {
+        self.setMode(mode: GSViewMode.edit)
+        self.delegate?.switchTo(mode: self.mode, inGSBtnVC: self)
     }
-    return self;
-}
-
-- (void)addPoint:(CGPoint)point withMapView:(MKMapView *)mapView
-{
-    CLLocationCoordinate2D coordinate = [mapView convertPoint:point toCoordinateFromView:mapView];
-    CLLocation *location = [[CLLocation alloc] initWithLatitude:coordinate.latitude longitude:coordinate.longitude];
-    [_editPoints addObject:location];
-    MKPointAnnotation* annotation = [[MKPointAnnotation alloc] init];
-    annotation.coordinate = location.coordinate;
-    [mapView addAnnotation:annotation];
-}
-
-- (void)cleanAllPointsWithMapView:(MKMapView *)mapView
-{
-    [_editPoints removeAllObjects];
-    NSArray* annos = [NSArray arrayWithArray:mapView.annotations];
-    for (int i = 0; i < annos.count; i++) {
-        id<MKAnnotation> ann = [annos objectAtIndex:i];
-        [mapView removeAnnotation:ann];
-    }   
-}
-
-- (NSArray *)wayPoints
-{
-    return self.editPoints;
-}
-
-@end
-~~~
-First, we initialize the **editPoints** array in the init method, then create MKPointAnnotation objects from CGPoint and add them to our **mapView**, and finally implement the **cleanAllPointsWithMapView** method to clean up the **editPoints** array and the annotations on the mapView.
-
-Go back to the DJIRootViewController.m file, import the DJIMapController.h header file, and create a DJIMapController property named **mapController**. Since we want to add annotation pins by tapping on the map, we also need to create a UITapGestureRecognizer named as **tapGesture**. Lastly, add a UIButton to the DJIRootViewController scene in Main.storyboard, set its IBOutlet name as "**editBtn**", and add an IBAction method named "**editBtnAction**" for it, as shown below:
-
-~~~objc
-@property (nonatomic, strong) DJIMapController *mapController;
-@property (nonatomic, strong) UITapGestureRecognizer *tapGesture;
-@property (weak, nonatomic) IBOutlet UIButton *editBtn;
-
-- (IBAction)editBtnAction:(id)sender;
 ~~~
 
 ![editButton](../images/tutorials-and-samples/iOS/GSDemo/editButton.png)
 
-Once that is complete, open the DJIRootViewController.m file, initialize the **mapController** and **tapGesture** variables, and add the **tapGesture** to mapView to add waypoints. Furthermore, we need a boolean variable named "**isEditingPoints**" to store the edit waypoint state, which will also change the title of **editBtn** accordingly. Lastly, implement tapGesture's action method **addWayPoints**, as shown below:
+Once that is complete, open the RootViewController.m file, initialize the **mapController** and **tapGesture** variables, and add the **tapGesture** to mapView to add waypoints. Furthermore, we need a boolean variable named "**isEditingPoints**" to store the edit waypoint state, which will also change the title of **editBtn** accordingly. Lastly, implement tapGesture's action method **addWayPoints**, as shown below:
 
-~~~objc
-@interface DJIRootViewController ()<MKMapViewDelegate>
-@property (weak, nonatomic) IBOutlet MKMapView *mapView;
-@property (nonatomic, assign)BOOL isEditingPoints;
-@end
+~~~Swift
+class RootViewController : UIViewController, MKMapViewDelegate {
 
-@implementation DJIRootViewController
-- (void)viewDidLoad {
-    [super viewDidLoad];
+    var isEditingPoints = false
+    @IBOutlet weak var mapView: MKMapView!
 
-    self.mapController = [[DJIMapController alloc] init];
-    self.tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(addWaypoints:)];
-    [self.mapView addGestureRecognizer:self.tapGesture];
-
-}
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        self.registerApp()
+        self.initUI()
+        self.initData()
+    }
 
 #pragma mark Custom Methods
 
-- (void)addWaypoints:(UITapGestureRecognizer *)tapGesture
-{
-    CGPoint point = [tapGesture locationInView:self.mapView];
-
-    if(tapGesture.state == UIGestureRecognizerStateEnded){
-
-        if (self.isEditingPoints) {
-            [self.mapController addPoint:point withMapView:self.mapView];
+    @objc func addWaypoints(tapGesture:UITapGestureRecognizer) {
+        let point = tapGesture.location(in: self.mapView)
+        if tapGesture.state == UIGestureRecognizer.State.ended {
+            if self.isEditingPoints {
+                self.mapController?.add(point: point, for: self.mapView)
+            }
         }
     }
-}
 
-- (IBAction)editBtnAction:(id)sender {
-
-    if (self.isEditingPoints) {
-        [self.mapController cleanAllPointsWithMapView:self.mapView];
-        [self.editBtn setTitle:@"Edit" forState:UIControlStateNormal];
-    }else
-    {
-        [self.editBtn setTitle:@"Reset" forState:UIControlStateNormal];
+    //TODO: pasted from GSButtonViewController, might need to be modified to work in RootVC...
+    @IBAction func editBtnAction(_ sender: Any) {
+        self.setMode(mode: GSViewMode.edit)
+        self.delegate?.switchTo(mode: self.mode, inGSBtnVC: self)
     }
 
-    self.isEditingPoints = !self.isEditingPoints;
-
-}
-
-#pragma mark MKMapViewDelegate Method
-- (MKAnnotationView *)mapView:(MKMapView *)mapView viewForAnnotation:(id <MKAnnotation>)annotation
-{
-    if ([annotation isKindOfClass:[MKPointAnnotation class]]) {
-        MKPinAnnotationView* pinView = [[MKPinAnnotationView alloc] initWithAnnotation:annotation reuseIdentifier:@"Pin_Annotation"];
-        pinView.pinColor = MKPinAnnotationColorPurple;
-        return pinView;
-
+    //MARK:  MKMapViewDelegate Method
+    func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        if annotation.isKind(of: MKPointAnnotation.self) {
+            let pinView = MKPinAnnotationView(annotation: annotation, reuseIdentifier: "Pin_Annotation")
+            pinView.pinTintColor = UIColor.purple
+            return pinView
+        } else if annotation.isKind(of: AircraftAnnotation.self) {
+            let annotationView = AircraftAnnotationView(annotation: annotation, reuseIdentifier: "Aircraft_Annotation")
+            (annotation as? AircraftAnnotation)?.annotationView = annotationView
+            return annotationView
+        }
+        return nil
     }
-
-    return nil;
 }
 
 ~~~
 
 In the above code, we also added an NSNotification observer to check the DJI Mobile SDK's state, to make sure it was sucessfully registered. At the same time, we implement the **addWaypoints** gesture action by calling DJIMapController's
 
-     - (void)addPoint:(CGPoint)point withMapView:(MKMapView *)mapView
+     func add(point:CGPoint, for mapView:MKMapView)
 method to add waypoints to the map. Next, we implement the IBAction method **editBtn**, which will update the button's title and clean up waypoints based on the value of **isEditingPoints**. Finally, we implement MKMapViewDelegate's method to change the pin color to purple.
 
 When you are done with all the steps above, build and run your project and try to add waypoints on the map. If everything is fine, you will see the following animation:
@@ -219,102 +177,95 @@ When you are done with all the steps above, build and run your project and try t
 
 You may be wondering why the map's location is different from your current location and why it is difficult to find your location on the map. Focusing the map to your current location quickly would be helpful for the application. To implement that feature, we need to use **CLLocationManager**.
 
-Open the DJIRootViewController.m file and import CoreLocation's header file. Create a CLLocationManager property named "locationManager". Then create a CLLocationCoordinate2D property named "userLocation" to store the user's location data. Next, implement CLLocationManager's **CLLocationManagerDelegate** protocol in the class, as shown below:
+Open the RootViewController.swift file and import CoreLocation. Create a CLLocationManager property named "locationManager". Then create a CLLocationCoordinate2D property named "userLocation" to store the user's location data. Next, implement CLLocationManager's **CLLocationManagerDelegate** protocol in the class, as shown below:
 
-~~~objc
-#import <DJIRootViewController.h>
-#import <DJISDK/DJISDK.h>
-#import <MapKit/MapKit.h>
-#import <CoreLocation/CoreLocation.h>
+~~~Swift
+import Foundation
+import UIKit
+import MapKit
+import CoreLocation
+import DJISDK
 
-@interface DJIRootViewController()<MKMapViewDelegate, CLLocationManagerDelegate>
+class RootViewController : UIViewController, MKMapViewDelegate, CLLocationManagerDelegate {
 
-@property (nonatomic, weak) IBOutlet MKMapView *mapView;
-@property (nonatomic, assign)BOOL isEditingPoints;
-@property (nonatomic, strong) CLLocationManager* locationManager;
-@property (nonatomic, assign) CLLocationCoordinate2D userLocation;
-@property (nonatomic, strong) UITapGestureRecognizer *tapGesture;
-@property (nonatomic, weak) IBOutlet UIButton *editBtn;
+    var isEditingPoints = false
+    var locationManager : CLLocationManager?
+    var userLocation : CLLocationCoordinate2D?
 
-- (IBAction)editBtnAction:(id)sender;
-- (IBAction)focusMapAction:(id)sender;
+    @IBOutlet weak var mapView: MKMapView!
+    @IBOutlet weak var editBtn: UIButton!
 
-@end
+    @IBAction func editBtnAction(_ sender: Any) {
+        self.setMode(mode: GSViewMode.edit)
+        self.delegate?.switchTo(mode: self.mode, inGSBtnVC: self)
+    }
+    @IBAction func focusMapBtnAction(_ sender: Any) {
+        self.delegate?.focusMapBtnActionIn(gsBtnVC: self)
+    }
+}
 ~~~
 
-In the code above, we also added a UIButton named "Focus Map" in DJIRootViewController's scene in Main.storyboard and added an IBAction method named as **focusMapAction**. Here is the screenshot of the scene from Main.storyboard:
+In the code above, we also added a UIButton named "Focus Map" in RootViewController's scene in Main.storyboard and added an IBAction method named as **focusMapAction**. Here is the screenshot of the scene from Main.storyboard:
 
 ![focusMap](../images/tutorials-and-samples/iOS/GSDemo/focusMap.png)
 
-Once you are done, go back to DJIRootViewController.m file and add the following code:
+Now go back to RootViewController.swift and add the following code:
 
-~~~objc
-- (void)viewWillAppear:(BOOL)animated
-{
-    [super viewWillAppear:animated];
-    [self startUpdateLocation];
-}
+~~~Swift
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        self.startUpdateLocation()
+    }
 
-- (void)viewWillDisappear:(BOOL)animated
-{
-    [super viewWillDisappear:animated];
-    [self.locationManager stopUpdatingLocation];
-}
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        self.locationManager?.stopUpdatingLocation()
+    }
 
-- (void)viewDidLoad {
-    [super viewDidLoad];
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        self.registerApp()
+        self.initUI()
+        self.initData()
+    }
 
-    self.userLocation = kCLLocationCoordinate2DInvalid;
-
-    self.mapController = [[DJIMapController alloc] init];
-    self.tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(addWaypoints:)];
-    [self.mapView addGestureRecognizer:self.tapGesture];
-
-}
-
-- (BOOL)prefersStatusBarHidden {
-    return NO;
-}
+    func prefersStatusBarHidden() -> Bool {
+        return false
+    }
 
 #pragma mark CLLocation Methods
--(void) startUpdateLocation
-{
-    if ([CLLocationManager locationServicesEnabled]) {
-        if (self.locationManager == nil) {
-            self.locationManager = [[CLLocationManager alloc] init];
-            self.locationManager.delegate = self;
-            self.locationManager.desiredAccuracy = kCLLocationAccuracyBest;
-            self.locationManager.distanceFilter = 0.1;
-            if ([self.locationManager respondsToSelector:@selector(requestAlwaysAuthorization)]) {
-                [self.locationManager requestAlwaysAuthorization];
+    //MARK:  CLLocation Methods
+    func startUpdateLocation() {
+        if CLLocationManager.locationServicesEnabled() {
+            if self.locationManager == nil {
+                self.locationManager = CLLocationManager()
+                self.locationManager?.delegate = self
+                self.locationManager?.desiredAccuracy = kCLLocationAccuracyBest
+                self.locationManager?.distanceFilter = 0.1
+                self.locationManager?.requestAlwaysAuthorization()
             }
-            [self.locationManager startUpdatingLocation];
+        } else {
+            showAlertWith("Location Service is not available")
         }
-    }else
-    {
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Location Service is not available" message:@"" delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil];
-        [alert show];
     }
-}
-
-- (IBAction)focusMapAction:(id)sender
-{
-    if (CLLocationCoordinate2DIsValid(self.userLocation)) {
-        MKCoordinateRegion region = {0};
-        region.center = self.userLocation;
-        region.span.latitudeDelta = 0.001;
-        region.span.longitudeDelta = 0.001;
-
-        [self.mapView setRegion:region animated:YES];
+    //TODO: used to be directly called by action...
+    func focusMap() {
+        guard let droneLocation = self.droneLocation else {
+            return
+        }
+        
+        if CLLocationCoordinate2DIsValid(droneLocation) {
+            let center = CLLocationCoordinate2D(latitude: droneLocation.latitude, longitude: droneLocation.longitude)
+            let span = MKCoordinateSpan(latitudeDelta: 0.001, longitudeDelta: 0.001)
+            let region = MKCoordinateRegion(center: center, span: span)
+            self.mapView.setRegion(region, animated: true)
+        }
     }
-}
 
-#pragma mark - CLLocationManagerDelegate
-- (void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray *)locations
-{
-    CLLocation* location = [locations lastObject];
-    self.userLocation = location.coordinate;
-}
+    //MARK:  - CLLocationManagerDelegate
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        self.userLocation = locations.last?.coordinate
+    }
 
 ~~~
 
@@ -336,165 +287,97 @@ Now, we can focus the mapView to our current location, which is a good start! Ho
 
 You can check the [DJI Assistant 2 Simulator](../application-development-workflow/workflow-testing.html#dji-assistant-2-simulator) for its basic usage. If you want to place the aircraft in your current GPS location on Map View, you can set the latitude and longitude values in the **Simulator Config** to yours. We take the simulator's initial values in the following example.
 
-Let's come back to the code. Create a new subclass of **MKAnnotationView** named "DJIAircraftAnnotationView" and a new subclass of NSObject named **DJIAircraftAnnotation**. Below is the code:
+Let's come back to the code. Create a new subclass of **MKAnnotationView** named "AircraftAnnotationView" and a new subclass of NSObject named **DJIAircraftAnnotation**. Below is the code:
 
-- DJIAircraftAnnotationView.h
+- AircraftAnnotationView.swift
 
-~~~objc
-#import <MapKit/MapKit.h>
+~~~Swift
+import Foundation
+import MapKit
 
-@interface DJIAircraftAnnotationView : MKAnnotationView
+class AircraftAnnotationView: MKAnnotationView {
 
--(void) updateHeading:(float)heading;
-
-@end
-~~~
-
-- DJIAircraftAnnotationView.m
-
-~~~objc
-#import "DJIAircraftAnnotationView.h"
-
-@implementation DJIAircraftAnnotationView
-
-- (instancetype)initWithAnnotation:(id <MKAnnotation>)annotation reuseIdentifier:(NSString *)reuseIdentifier
-{
-    self = [super initWithAnnotation:annotation reuseIdentifier:reuseIdentifier];
-    if (self) {
-        self.enabled = NO;
-        self.draggable = NO;
-        self.image = [UIImage imageNamed:@"aircraft.png"];
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        self.isEnabled = false
+        self.isDraggable = false
+        self.image = UIImage(named: "aircraft.png")
     }
 
-    return self;
-}
-
--(void) updateHeading:(float)heading
-{
-    self.transform = CGAffineTransformIdentity;
-    self.transform = CGAffineTransformMakeRotation(heading);
-}
-
-@end
-
-~~~
-
-In the code above, we create a MKAnnotationView for the aircraft, add a method named **updateHeading** to change the aircraft's rotation, and set its image to "aircraft.png"(You can get the image from this tutorial's demo project.) in the init method. Also, we disable the DJIAircraftAnnotationView's draggable property. Take a look at the code below:
-
-- DJIAircraftAnnotation.h
-
-~~~objc
-#import <MapKit/MapKit.h>
-#import "DJIAircraftAnnotationView.h"
-
-@interface DJIAircraftAnnotation : NSObject<MKAnnotation>
-
-@property(nonatomic, readonly) CLLocationCoordinate2D coordinate;
-@property(nonatomic, weak) DJIAircraftAnnotationView* annotationView;
-
--(id) initWithCoordiante:(CLLocationCoordinate2D)coordinate;
-
--(void)setCoordinate:(CLLocationCoordinate2D)newCoordinate;
-
--(void) updateHeading:(float)heading;
-
-@end
-~~~
-
-- DJIAircraftAnnotation.m
-
-~~~objc
-#import "DJIAircraftAnnotation.h"
-
-@implementation DJIAircraftAnnotation
-
--(id) initWithCoordiante:(CLLocationCoordinate2D)coordinate
-{
-    self = [super init];
-    if (self) {
-        _coordinate = coordinate;
-    }   
-    return self;
-}
-
-- (void)setCoordinate:(CLLocationCoordinate2D)newCoordinate
-{
-    _coordinate = newCoordinate;
-}
-
--(void)updateHeading:(float)heading
-{
-    if (self.annotationView) {
-        [self.annotationView updateHeading:heading];
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+    }
+    
+    public func update(heading:Float) {
+        self.transform = CGAffineTransform.identity
+        self.transform = CGAffineTransform(rotationAngle: CGFloat(heading))
     }
 }
-@end
+
 ~~~
 
-The **DJIAircraftAnnotation** class implements the **MKAnnotation** protocol. It's used to store and update a CLLocationCoordinate2D property. Also, we can update DJIAircraftAnnotationView's heading with the **updateHeading** method.
+In the code above, we create a MKAnnotationView for the aircraft, add a method named **updateHeading** to change the aircraft's rotation, and set its image to "aircraft.png"(You can get the image from this tutorial's demo project.) in the init method. Also, we disable the AircraftAnnotationView's draggable property. Take a look at the code below:
 
-Once you're done with that, open the DJIMapController.h file and import the DJIAircraftAnnotation.h file:
+- DJIAircraftAnnotation.swift
 
-~~~objc
-#import "DJIAircraftAnnotation.h"
+~~~Swift
+import Foundation
+import MapKit
+
+class AircraftAnnotation : NSObject, MKAnnotation {
+    var coordinate : CLLocationCoordinate2D
+    var annotationView : AircraftAnnotationView?
+    
+    init(coordinate:CLLocationCoordinate2D) {
+        self.coordinate = coordinate
+        super.init()
+    }
+    
+    func update(heading:Float) {
+        self.annotationView?.update(heading: heading)
+    }
+}
 ~~~
 
-Then create a property of an instance of DJIAircraftAnnotation and name it **aircraftAnnotation**.
+The **AircraftAnnotation** class implements the **MKAnnotation** protocol. It's used to store and update a CLLocationCoordinate2D property. Also, we can update AircraftAnnotationView's heading with the **updateHeading** method.
 
-~~~objc
-@property (nonatomic, strong) DJIAircraftAnnotation* aircraftAnnotation;
+Then create a property of an instance of AircraftAnnotation and name it **aircraftAnnotation**.
+
+~~~Swift
+    var aircraftAnnotation : AircraftAnnotation?
 ~~~
 
 Furthermore, add two new methods to update the aircraft's location and it's heading on the map.
 
-~~~objc
-/**
- *  Update Aircraft's location in Map View
- */
--(void)updateAircraftLocation:(CLLocationCoordinate2D)location withMapView:(MKMapView *)mapView;
-
-/**
- *  Update Aircraft's heading in Map View
- */
--(void)updateAircraftHeading:(float)heading;
-~~~
-
-Next, let's come back to the DJIMapController.m file and implement the two methods we just added:
-
-~~~objc
--(void)updateAircraftLocation:(CLLocationCoordinate2D)location withMapView:(MKMapView *)mapView
-{
-    if (self.aircraftAnnotation == nil) {
-        self.aircraftAnnotation = [[DJIAircraftAnnotation alloc] initWithCoordiante:location];
-        [mapView addAnnotation:self.aircraftAnnotation];
+~~~Swift
+    func updateAircraft(location:CLLocationCoordinate2D, with mapView:MKMapView) {
+        if self.aircraftAnnotation == nil {
+            self.aircraftAnnotation = AircraftAnnotation(coordinate: location)
+            mapView.addAnnotation(self.aircraftAnnotation!)
+        } else {
+            self.aircraftAnnotation?.coordinate = location
+        }
     }
-
-    [self.aircraftAnnotation setCoordinate:location];
-}
-
--(void)updateAircraftHeading:(float)heading
-{
-    if (self.aircraftAnnotation) {
-        [self.aircraftAnnotation updateHeading:heading];
+    
+    func updateAircraftHeading(heading:Float) {
+        if let _ = self.aircraftAnnotation {
+            self.aircraftAnnotation!.update(heading: heading)
+        }
     }
-}
 ~~~
 
 Also, since we don't want the **aircraftAnnotation** removed by the **cleanAllPointsWithMapView** method in the DJIMapController.m file, we need to modify it, as shown below:
 
-~~~objc
-- (void)cleanAllPointsWithMapView:(MKMapView *)mapView
-{
-    [_editPoints removeAllObjects];
-    NSArray* annos = [NSArray arrayWithArray:mapView.annotations];
-    for (int i = 0; i < annos.count; i++) {
-        id<MKAnnotation> ann = [annos objectAtIndex:i];
-        if (![ann isEqual:self.aircraftAnnotation]) {
-            [mapView removeAnnotation:ann];
+~~~Swift
+    func cleanAllPoints(with mapView: MKMapView) {
+        self.editPoints.removeAll()
+        let annotations = [MKAnnotation].init(mapView.annotations)
+        for annotation : MKAnnotation in annotations {
+            if annotation !== self.aircraftAnnotation {
+                mapView.removeAnnotation(annotation)
+            }
         }
-
-    }   
-}
+    }
 ~~~
 We add an if statement to check if the annotation of the map view is equal to the **aircraftAnnotation** property, and if it is not, we remove it. By doing so, we can prevent the Aircraft's annotation from being removed.
 
@@ -502,210 +385,188 @@ To provide a better user experience, we need to add a status view on top of the 
 
 ![statusView](../images/tutorials-and-samples/iOS/GSDemo/statusView.png)
 
-Once that's done, open DJIRootViewController.m file, create IBOutlets for the above UI elements and import DJISDK's header file and implement "DJIFlightControllerDelegate" and "DJISDKManagerDelegate" protocols. Also, we need to create a CLLocationCoordinate2D property named **droneLocation** to record the aircraft's location, as shown below:
+Once that's done, open RootViewController.swift, and create IBOutlets for the above UI elements and import DJISDK's header file and implement "DJIFlightControllerDelegate" and "DJISDKManagerDelegate" protocols. Also, we need to create a CLLocationCoordinate2D property named **droneLocation** to record the aircraft's location, as shown below:
 
-~~~objc
-#import <DJIRootViewController.h>
-#import <DJISDK/DJISDK.h>
-#import <MapKit/MapKit.h>
-#import <CoreLocation/CoreLocation.h>
+~~~Swift
+import Foundation
+import UIKit
+import MapKit
+import CoreLocation
+import DJISDK
 
-@interface DJIRootViewController()<MKMapViewDelegate, CLLocationManagerDelegate, DJISDKManagerDelegate, DJIFlightControllerDelegate>
+class RootViewController : UIViewController, MKMapViewDelegate, CLLocationManagerDelegate, DJISDKManagerDelegate, DJIFlightControllerDelegate {
 
-@property(nonatomic, strong) IBOutlet UILabel* modeLabel;
-@property(nonatomic, strong) IBOutlet UILabel* gpsLabel;
-@property(nonatomic, strong) IBOutlet UILabel* hsLabel;
-@property(nonatomic, strong) IBOutlet UILabel* vsLabel;
-@property(nonatomic, strong) IBOutlet UILabel* altitudeLabel;
+    var droneLocation : CLLocationCoordinate2D?
 
-@property(nonatomic, assign) CLLocationCoordinate2D droneLocation;
+    @IBOutlet weak var modeLabel: UILabel!
+    @IBOutlet weak var gpsLabel: UILabel!
+    @IBOutlet weak var hsLabel: UILabel!
+    @IBOutlet weak var vsLabel: UILabel!
+    @IBOutlet weak var altitudeLabel: UILabel!
+
 ~~~
 
 Now, let's initialize the UI elements' values in a new method called **initUI**. Call the initUI method in the viewDidLoad method. Lastly, create a new method named "registerApp" and invoke it in the viewDidLoad method to register the app as shown below:
 
-~~~objc
+~~~Swift
 
--(void) initUI
-{
-    self.modeLabel.text = @"N/A";
-    self.gpsLabel.text = @"0";
-    self.vsLabel.text = @"0.0 M/S";
-    self.hsLabel.text = @"0.0 M/S";
-    self.altitudeLabel.text = @"0 M";
-}
+    //MARK:  Init Methods
+    func initData() {
+        self.userLocation = kCLLocationCoordinate2DInvalid
+        self.droneLocation = kCLLocationCoordinate2DInvalid
+        self.mapController = MapController()
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(addWaypoints(tapGesture:)))
+        self.mapView.addGestureRecognizer(tapGesture)
+    }
 
-- (void)registerApp
-{
-    //Please enter your App key in the info.plist file to register the app.
-    [DJISDKManager registerAppWithDelegate:self];
-}
-~~~
+    func registerApp() {
+        DJISDKManager.registerApp(with: self)
+    }
 
-~~~objc
-- (void)viewDidLoad {
-    [super viewDidLoad];
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        self.registerApp()
+        self.initUI()
+        self.initData()
+    }
 
-    [self registerApp];
-    [self initUI];
-    [self initData];
-}
-
--(void)initData
-{
-    self.userLocation = kCLLocationCoordinate2DInvalid;
-    self.droneLocation = kCLLocationCoordinate2DInvalid;
-
-    self.mapController = [[DJIMapController alloc] init];
-    self.tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(addWaypoints:)];
-    [self.mapView addGestureRecognizer:self.tapGesture];
-
-}
+    func initData() {
+        self.userLocation = kCLLocationCoordinate2DInvalid
+        self.droneLocation = kCLLocationCoordinate2DInvalid
+        self.mapController = MapController()
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(addWaypoints(tapGesture:)))
+        self.mapView.addGestureRecognizer(tapGesture)
+    }
 ~~~
 
 Next, implement the "DJISDKManagerDelegate" method as follows:
 
-~~~objc
+~~~Swift
 
-#pragma mark DJISDKManagerDelegate Methods
-
-- (void)appRegisteredWithError:(NSError *)error
-{
-    if (error){
-        NSString *registerResult = [NSString stringWithFormat:@"Registration Error:%@", error.description];
-        ShowMessage(@"Registration Result", registerResult, nil, @"OK");
-    }
-    else{
-        [DJISDKManager startConnectionToProduct];
-    }
-}
-
-- (void)productConnected:(DJIBaseProduct *)product
-{
-    if (product){
-        DJIFlightController* flightController = [DemoUtility fetchFlightController];
-        if (flightController) {
-            flightController.delegate = self;
+    //MARK: DJISDKManagerDelegate Methods
+    func appRegisteredWithError(_ error: Error?) {
+        if let error = error {
+            let registerResult = "Registration Error: \(error.localizedDescription)"
+            showAlertWith(registerResult)
+        } else {
+            if useBridgeMode {
+                DJISDKManager.enableBridgeMode(withBridgeAppIP: bridgeIPString)
+            } else {
+                DJISDKManager.startConnectionToProduct()
+            }
         }
-    }else{
-        ShowMessage(@"Product disconnected", nil, nil, @"OK");
     }
+
+    func productConnected(_ product: DJIBaseProduct?) {
+        if let _ = product, let flightController = fetchFlightController() {
+            flightController.delegate = self
+        } else {
+            showAlertWith("Flight controller disconnected")
+        }
+        
+        //If this demo is used in China, it's required to login to your DJI account to activate the application. Also you need to use DJI Go app to bind the aircraft to your DJI account. For more details, please check this demo's tutorial.
+        DJISDKManager.userAccountManager().logIntoDJIUserAccount(withAuthorizationRequired: false) { (state:DJIUserAccountState, error: Error?) in
+            if let error = error {
+                NSLog("Login failed: %@", error.localizedDescription)
+            }
+        }
+    }
+
+~~~
+
+In the code above, we can implement DJISDKManager's `appRegisteredWithError:` delegate method to check the register status and invoke the DJISDKManager's "startConnectionToProduct" method to connect to the aircraft. Moreover, the `productConnected:` delegate method will be invoked when the product connectivity status changes, so we can set DJIFlightController's delegate as RootViewController here when product is connected.
+
+You may notice that there is a "DemoUtility" file here, that defines methods that will be used frequently in the project. Let's implement it now. Create a new swift file and named it as "DemoUtility", replace its .h file and .m file with the followings:
+
+~~~Swift
+import Foundation
+import DJISDK
+
+extension FloatingPoint {
+    var degreesToRadians: Self { self * .pi / 180 }
+}
+
+func showAlertWith(_ result:String) {
+    DispatchQueue.main.async {
+        let alertViewController = UIAlertController(title: nil, message: result as String, preferredStyle: UIAlertController.Style.alert)
+        let okAction = UIAlertAction.init(title: "OK", style: UIAlertAction.Style.default, handler: nil)
+        alertViewController.addAction(okAction)
+        let rootViewController = UIApplication.shared.keyWindow?.rootViewController
+        rootViewController?.present(alertViewController, animated: true, completion: nil)
+    }
+}
+
+func fetchFlightController() -> DJIFlightController? {
+    if let aircraft = DJISDKManager.product() as? DJIAircraft {
+        return aircraft.flightController
+    }
+    return nil
 }
 
 ~~~
 
-In the code above, we can implement DJISDKManager's `appRegisteredWithError:` delegate method to check the register status and invoke the DJISDKManager's "startConnectionToProduct" method to connect to the aircraft. Moreover, the `productConnected:` delegate method will be invoked when the product connectivity status changes, so we can set DJIFlightController's delegate as DJIRootViewController here when product is connected.
+Then in the **viewWillDisappear** method of RootViewController, we need to invoke the "stopUpdatingLocation" method of CLLocationManager to stop update location as shown below:
 
-You may notice that there is a "DemoUtility" class here, it's a class which defines methods that will be used frequently in the project. Let's implement it now. Create a new NSObject class and named it as "DemoUtility", replace its .h file and .m file with the followings:
-
-~~~objc
-#ifndef DemoUtility_h
-#define DemoUtility_h
-#define WeakRef(__obj) __weak typeof(self) __obj = self
-#define WeakReturn(__obj) if(__obj ==nil)return;
-#define DEGREE(x) ((x)*180.0/M_PI)
-#define RADIAN(x) ((x)*M_PI/180.0)
-#endif
-
-extern void ShowMessage(NSString *title, NSString *message, id target, NSString *cancleBtnTitle);
-
-@class DJIFlightController;
-@interface DemoUtility : NSObject
-+(DJIFlightController*) fetchFlightController;
-@end
-
+~~~Swift
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        self.locationManager?.stopUpdatingLocation()
+    }
 ~~~
 
-~~~objc
-#import "DemoUtility.h"
-#import <DJISDK/DJISDK.h>
+Also, update(TODO:what did it look like before?) the **focusMapAction** method to set **droneLocation** as the center of the map view's region, as shown below:
 
-inline void ShowMessage(NSString *title, NSString *message, id target, NSString *cancleBtnTitle)
-{
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:title message:message delegate:target cancelButtonTitle:cancleBtnTitle otherButtonTitles:nil];
-        [alert show];
-    });
-}
-
-@implementation DemoUtility
-+(DJIFlightController*) fetchFlightController {
-    if (![DJISDKManager product]) {
-        return nil;
+~~~Swift
+//TODO: again, need to account for getting called from ButtonVC
+    func focusMap() {
+        guard let droneLocation = self.droneLocation else {
+            return
+        }
+        
+        if CLLocationCoordinate2DIsValid(droneLocation) {
+            let center = CLLocationCoordinate2D(latitude: droneLocation.latitude, longitude: droneLocation.longitude)
+            let span = MKCoordinateSpan(latitudeDelta: 0.001, longitudeDelta: 0.001)
+            let region = MKCoordinateRegion(center: center, span: span)
+            self.mapView.setRegion(region, animated: true)
+        }
     }
-    if ([[DJISDKManager product] isKindOfClass:[DJIAircraft class]]) {
-        return ((DJIAircraft*)[DJISDKManager product]).flightController;
-    }
-    return nil;
-}
-@end
 ~~~
 
-Then in the **viewWillDisappear** method, we need to invoke the "stopUpdatingLocation" method of CLLocationManager to stop update location as shown below:
+Next, We need to modify the **MKMapViewDelegate** method to what is shown below. It will check the annotation variable's class and set its annotationView as a **AircraftAnnotationView** Class type object:
 
-~~~objc
-- (void)viewWillDisappear:(BOOL)animated
-{
-    [super viewWillDisappear:animated];
-    [self.locationManager stopUpdatingLocation];
-}
-~~~
-
-Moreover, update the **focusMapAction** method to set **droneLocation** as the center of the map view's region, as shown below:
-
-~~~objc
-- (IBAction)focusMapAction:(id)sender {
-
-    if (CLLocationCoordinate2DIsValid(self.droneLocation)) {
-        MKCoordinateRegion region = {0};
-        region.center = self.droneLocation;
-        region.span.latitudeDelta = 0.001;
-        region.span.longitudeDelta = 0.001;
-        [self.mapView setRegion:region animated:YES];
+~~~Swift
+    func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        if annotation.isKind(of: MKPointAnnotation.self) {
+            let pinView = MKPinAnnotationView(annotation: annotation, reuseIdentifier: "Pin_Annotation")
+            pinView.pinTintColor = UIColor.purple
+            return pinView
+        } else if annotation.isKind(of: AircraftAnnotation.self) {
+            let annotationView = AircraftAnnotationView(annotation: annotation, reuseIdentifier: "Aircraft_Annotation")
+            (annotation as? AircraftAnnotation)?.annotationView = annotationView
+            return annotationView
+        }
+        return nil
     }
-
-}
-~~~
-
-Next, We need to modify the **MKMapViewDelegate** method to what is shown below. It will check the annotation variable's class and set its annotationView as a **DJIAircraftAnnotationView** Class type object:
-
-~~~objc
-- (MKAnnotationView *)mapView:(MKMapView *)mapView viewForAnnotation:(id <MKAnnotation>)annotation
-{
-    if ([annotation isKindOfClass:[MKPointAnnotation class]]) {
-        MKPinAnnotationView* pinView = [[MKPinAnnotationView alloc] initWithAnnotation:annotation reuseIdentifier:@"Pin_Annotation"];
-        pinView.pinColor = MKPinAnnotationColorPurple;
-        return pinView;
-
-    }else if ([annotation isKindOfClass:[DJIAircraftAnnotation class]])
-    {
-        DJIAircraftAnnotationView* annoView = [[DJIAircraftAnnotationView alloc] initWithAnnotation:annotation reuseIdentifier:@"Aircraft_Annotation"];
-        ((DJIAircraftAnnotation*)annotation).annotationView = annoView;
-        return annoView;
-    }
-
-    return nil;
-}
 ~~~
 
 Furthermore, let's implement the **DJIFlightControllerDelegate** method:
 
-~~~objc
-#pragma mark DJIFlightControllerDelegate
-
-- (void)flightController:(DJIFlightController *)fc didUpdateState:(DJIFlightControllerState *)state
-{
-    self.droneLocation = state.aircraftLocation.coordinate;
-
-    self.modeLabel.text = state.flightModeString;
-    self.gpsLabel.text = [NSString stringWithFormat:@"%lu", (unsigned long)state.satelliteCount];
-    self.vsLabel.text = [NSString stringWithFormat:@"%0.1f M/S",state.velocityZ];
-    self.hsLabel.text = [NSString stringWithFormat:@"%0.1f M/S",(sqrtf(state.velocityX*state.velocityX + state.velocityY*state.velocityY))];
-    self.altitudeLabel.text = [NSString stringWithFormat:@"%0.1f M",state.altitude];
-
-    [self.mapController updateAircraftLocation:self.droneLocation withMapView:self.mapView];
-    double radianYaw = RADIAN(state.attitude.yaw);
-    [self.mapController updateAircraftHeading:radianYaw];
-}
+~~~Swift
+    //MARK:  DJIFlightControllerDelegate
+    func flightController(_ fc: DJIFlightController, didUpdate state: DJIFlightControllerState) {
+        self.droneLocation = state.aircraftLocation?.coordinate
+        self.modeLabel.text = state.flightModeString
+        self.gpsLabel.text = String(state.satelliteCount)
+        self.vsLabel.text = String(format: "%0.1f M/S", state.velocityZ)
+        self.hsLabel.text = String(format: "%0.1f M/S", sqrt(pow(state.velocityX,2) + pow(state.velocityY,2)))
+        self.altitudeLabel.text = String(format: "%0.1f M", state.altitude)
+        
+        if let droneLocation = droneLocation {
+            self.mapController?.updateAircraft(location: droneLocation, with: self.mapView)
+        }
+        let radianYaw = state.attitude.yaw.degreesToRadians
+        self.mapController?.updateAircraftHeading(heading: Float(radianYaw))
+    }
 ~~~
 
 First, it will update the **droneLocation** with the aircraft's current location. Next, update the text for the status labels from the `DJIFlightControllerState`. Furthermore, update the aircraft's location and heading by calling the related methods from **DJIMapController**.
@@ -743,234 +604,228 @@ Next, drag eight UIButtons to the view and change their names to "Edit", "Back",
 
 ![gsButtons](../images/tutorials-and-samples/iOS/GSDemo/gsButtonViews.png)
 
- Then add IBOutlets and IBActions for each of the eight buttons in the DJIGSButtonViewController.h file. Also, we will add an Enum named **DJIGSViewMode** with the two different modes the application could be in. Next, we add serveral delegate methods to be implemented by the delegate viewcontroller when IBAction methods for the buttons are trigger. Lastly, add the method **switchToMode:inGSButtonVC:** to update the state of the buttons when the **DJIGSViewMode** changed. Take a look at the code below:
+ Then add IBOutlets and IBActions for each of the eight buttons in the DJIGSButtonViewController.swift file. Also, we will add an Enum named **DJIGSViewMode** with the two different modes the application could be in. Next, we add serveral delegate methods to be called by the delegate viewcontroller when IBAction methods for the buttons are triggered. Lastly, add the method **switchToMode:inGSButtonVC:** to update the state of the buttons when the **DJIGSViewMode** changed. Take a look at the code below:
 
- ~~~objc
-#import <UIKit/UIKit.h>
+ ~~~Swift
+import Foundation
+import UIKit
 
-typedef NS_ENUM(NSUInteger, DJIGSViewMode) {
-    DJIGSViewMode_ViewMode,
-    DJIGSViewMode_EditMode,
-};
-
-@class DJIGSButtonViewController;
-
-@protocol DJIGSButtonViewControllerDelegate <NSObject>
-
-- (void)stopBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC;
-- (void)clearBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC;
-- (void)focusMapBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC;
-- (void)startBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC;
-- (void)addBtn:(UIButton *)button withActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC;
-- (void)configBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC;
-- (void)switchToMode:(DJIGSViewMode)mode inGSButtonVC:(DJIGSButtonViewController *)GSBtnVC;
-
-@end
-
-@interface DJIGSButtonViewController : UIViewController
-
-@property (weak, nonatomic) IBOutlet UIButton *backBtn;
-@property (weak, nonatomic) IBOutlet UIButton *stopBtn;
-@property (weak, nonatomic) IBOutlet UIButton *clearBtn;
-@property (weak, nonatomic) IBOutlet UIButton *focusMapBtn;
-@property (weak, nonatomic) IBOutlet UIButton *editBtn;
-@property (weak, nonatomic) IBOutlet UIButton *startBtn;
-@property (weak, nonatomic) IBOutlet UIButton *addBtn;
-@property (weak, nonatomic) IBOutlet UIButton *configBtn;
-
-@property (assign, nonatomic) DJIGSViewMode mode;
-@property (weak, nonatomic) id <DJIGSButtonViewControllerDelegate> delegate;
-
-- (IBAction)backBtnAction:(id)sender;
-- (IBAction)stopBtnAction:(id)sender;
-- (IBAction)clearBtnAction:(id)sender;
-- (IBAction)focusMapBtnAction:(id)sender;
-- (IBAction)editBtnAction:(id)sender;
-- (IBAction)startBtnAction:(id)sender;
-- (IBAction)addBtnAction:(id)sender;
-- (IBAction)configBtnAction:(id)sender;
-
-@end
- ~~~
-
- Once you've taken care of that, open the DJIGSButtonViewController.m file to replace all the code in the file with the following code:
-
- ~~~objc
-#import "DJIGSButtonViewController.h"
-
-@implementation DJIGSButtonViewController
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    [self setMode:DJIGSViewMode_ViewMode];
+enum GSViewMode {
+    case view
+    case edit
 }
 
-- (void)didReceiveMemoryWarning {
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+protocol GSButtonViewControllerDelegate : AnyObject {
+    func stopBtnActionIn(gsBtnVC:GSButtonViewController)
+    func clearBtnActionIn(gsBtnVC:GSButtonViewController)
+    func focusMapBtnActionIn(gsBtnVC:GSButtonViewController)
+    func startBtnActionIn(gsBtnVC:GSButtonViewController)
+    func add(button:UIButton, actionIn gsBtnVC:GSButtonViewController)
+    func configBtnActionIn(gsBtnVC:GSButtonViewController)
+    func switchTo(mode:GSViewMode, inGSBtnVC:GSButtonViewController)
 }
 
-#pragma mark - Property Method
-- (void)setMode:(DJIGSViewMode)mode
-{
-    _mode = mode;
-    [_editBtn setHidden:(mode == DJIGSViewMode_EditMode)];
-    [_focusMapBtn setHidden:(mode == DJIGSViewMode_EditMode)];
-    [_backBtn setHidden:(mode == DJIGSViewMode_ViewMode)];
-    [_clearBtn setHidden:(mode == DJIGSViewMode_ViewMode)];
-    [_startBtn setHidden:(mode == DJIGSViewMode_ViewMode)];
-    [_stopBtn setHidden:(mode == DJIGSViewMode_ViewMode)];
-    [_addBtn setHidden:(mode == DJIGSViewMode_ViewMode)];
-    [_configBtn setHidden:(mode == DJIGSViewMode_ViewMode)];
-}
-
-#pragma mark - IBAction Methods
-
-- (IBAction)backBtnAction:(id)sender {
-    [self setMode:DJIGSViewMode_ViewMode];
-    if ([_delegate respondsToSelector:@selector(switchToMode:inGSButtonVC:)]) {
-        [_delegate switchToMode:self.mode inGSButtonVC:self];
+class GSButtonViewController : UIViewController {
+    @IBOutlet weak var backBtn: UIButton!
+    @IBOutlet weak var stopBtn: UIButton!
+    @IBOutlet weak var clearBtn: UIButton!
+    @IBOutlet weak var focusMapBtn: UIButton!
+    @IBOutlet weak var editBtn: UIButton!
+    @IBOutlet weak var startBtn: UIButton!
+    @IBOutlet weak var addBtn: UIButton!
+    @IBOutlet weak var configBtn: UIButton!
+    var mode = GSViewMode.view
+    var delegate : GSButtonViewControllerDelegate?
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+    }
+    
+    init() {
+        super.init(nibName:"GSButtonViewController", bundle:Bundle.main)
+    }
+    
+    convenience override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
+        self.init()
+    }
+    
+    convenience required init?(coder: NSCoder) {
+        self.init()
+    }
+    
+    //MARK - Property Method
+    func setMode(mode:GSViewMode) {
+        self.mode = mode
+        self.editBtn.isHidden = (mode == GSViewMode.edit)
+        self.focusMapBtn.isHidden = (mode == GSViewMode.edit)
+        self.backBtn.isHidden = (mode == GSViewMode.view)
+        self.clearBtn.isHidden = (mode == GSViewMode.view)
+        self.startBtn.isHidden = (mode == GSViewMode.view)
+        self.stopBtn.isHidden = (mode == GSViewMode.view)
+        self.addBtn.isHidden = (mode == GSViewMode.view)
+        self.configBtn.isHidden = (mode == GSViewMode.view)
+    }
+        
+    //MARK: - IBAction Methods
+    @IBAction func backBtnAction(_ sender: Any) {
+        self.setMode(mode: GSViewMode.view)
+        self.delegate?.switchTo(mode: self.mode, inGSBtnVC: self)
+    }
+    
+    @IBAction func stopBtnAction(_ sender: Any) {
+        self.delegate?.stopBtnActionIn(gsBtnVC: self)
+    }
+    
+    @IBAction func clearBtnAction(_ sender: Any) {
+        self.delegate?.clearBtnActionIn(gsBtnVC: self)
+    }
+    
+    @IBAction func focusMapBtnAction(_ sender: Any) {
+        self.delegate?.focusMapBtnActionIn(gsBtnVC: self)
+    }
+    
+    @IBAction func editBtnAction(_ sender: Any) {
+        self.setMode(mode: GSViewMode.edit)
+        self.delegate?.switchTo(mode: self.mode, inGSBtnVC: self)
+    }
+    
+    @IBAction func startBtnAction(_ sender: Any) {
+        self.delegate?.startBtnActionIn(gsBtnVC: self)
+    }
+    
+    @IBAction func addBtnAction(_ sender: Any) {
+        self.delegate?.add(button: self.addBtn, actionIn: self)
+    }
+    
+    @IBAction func configBtnAction(_ sender: Any) {
+        self.delegate?.configBtnActionIn(gsBtnVC: self)
     }
 }
-
-- (IBAction)stopBtnAction:(id)sender {
-    if ([_delegate respondsToSelector:@selector(stopBtnActionInGSButtonVC:)]) {
-        [_delegate stopBtnActionInGSButtonVC:self];
-    }
-}
-
-- (IBAction)clearBtnAction:(id)sender {
-    if ([_delegate respondsToSelector:@selector(clearBtnActionInGSButtonVC:)]) {
-        [_delegate clearBtnActionInGSButtonVC:self];
-    }
-}
-
-- (IBAction)focusMapBtnAction:(id)sender {
-    if ([_delegate respondsToSelector:@selector(focusMapBtnActionInGSButtonVC:)]) {
-        [_delegate focusMapBtnActionInGSButtonVC:self];
-    }
-}
-
-- (IBAction)editBtnAction:(id)sender {
-    [self setMode:DJIGSViewMode_EditMode];
-    if ([_delegate respondsToSelector:@selector(switchToMode:inGSButtonVC:)]) {
-        [_delegate switchToMode:self.mode inGSButtonVC:self];
-    }
-}
-
-- (IBAction)startBtnAction:(id)sender {
-    if ([_delegate respondsToSelector:@selector(startBtnActionInGSButtonVC:)]) {
-        [_delegate startBtnActionInGSButtonVC:self];
-    }
-}
-
-- (IBAction)addBtnAction:(id)sender {
-    if ([_delegate respondsToSelector:@selector(addBtn:withActionInGSButtonVC:)]) {
-        [_delegate addBtn:self.addBtn withActionInGSButtonVC:self];
-    }
-}
-
-- (IBAction)configBtnAction:(id)sender {
-    if ([_delegate respondsToSelector:@selector(configBtnActionInGSButtonVC:)]) {
-        [_delegate configBtnActionInGSButtonVC:self];
-    }
-}
-
-@end
  ~~~
 
  With those changes, the code structure will look cleaner and more robust, which will help in its maintainence later on.
 
- Now, let's go to the DJIRootViewController.m file and delete the **editButton** IBOutlet, the **resetPointsAction** method, and the **focusMapAction** method. After making those deletions, create an UIView IBOutlet named "topBarView" and link it to the Main.storyboard's RootViewController's view, as seen below:
+ Now, let's go to the RootViewController.swift file and delete the **editButton** IBOutlet, the **resetPointsAction** method, and the **focusMapAction** method. After making those deletions, create an UIView IBOutlet named "topBarView" and link it to the Main.storyboard's RootViewController's view, as seen below:
 
  ![topBarView](../images/tutorials-and-samples/iOS/GSDemo/topBarView.png)
 
- Then, import the DJIGSButtonViewController.h header file. Create a property of type "DJIGSButtonViewController" named **gsButtonVC** and implement DJIGSButtonViewController's **DJIGSButtonViewControllerDelegate** protocol within the class, as shown below:
+ Then, create a property of type "GSButtonViewController" named **gsButtonVC** and implement GSButtonViewController's **GSButtonViewControllerDelegate** protocol within the class, as shown below:
 
-~~~objc
-#import "DJIRootViewController.h"
-#import <MapKit/MapKit.h>
-#import <CoreLocation/CoreLocation.h>
-#import <DJISDK/DJISDK.h>
-#import "DJIMapController.h"
-#import "DJIGSButtonViewController.h"
-#import "DemoUtility.h"
+~~~Swift
+import Foundation
+import UIKit
+import MapKit
+import CoreLocation
+import DJISDK
 
-#define kEnterNaviModeFailedAlertTag 1001
 
-@interface DJIRootViewController ()<DJIGSButtonViewControllerDelegate, MKMapViewDelegate, CLLocationManagerDelegate, DJISDKManagerDelegate, DJIFlightControllerDelegate>
-@property (nonatomic, assign)BOOL isEditingPoints;
-@property (nonatomic, strong)DJIGSButtonViewController *gsButtonVC;
+class RootViewController : UIViewController, GSButtonViewControllerDelegate, MKMapViewDelegate, CLLocationManagerDelegate, DJISDKManagerDelegate, DJIFlightControllerDelegate {
+    var isEditingPoints = false
+    var gsButtonVC : GSButtonViewController?
+
+    ...
+}
 ~~~
 
 Furthermore, initialize the **gsButtonVC** property in the initUI method and move the original **focusMapAction** method's content to a new method named **focusMap**, as shown below:
 
-~~~objc
-self.gsButtonVC = [[DJIGSButtonViewController alloc] initWithNibName:@"DJIGSButtonViewController" bundle:[NSBundle mainBundle]];
-[self.gsButtonVC.view setFrame:CGRectMake(0, self.topBarView.frame.origin.y + self.topBarView.frame.size.height, self.gsButtonVC.view.frame.size.width, self.gsButtonVC.view.frame.size.height)];
-self.gsButtonVC.delegate = self;
-[self.view addSubview:self.gsButtonVC.view];
+~~~Swift
+        self.gsButtonVC = GSButtonViewController()
+        if let gsButtonVC = self.gsButtonVC {
+            gsButtonVC.view.frame = CGRect(x: 0.0,
+                                           y: self.topBarView.frame.origin.y + self.topBarView.frame.size.height,
+                                           width: self.gsButtonVC!.view.frame.size.width,
+                                           height: self.gsButtonVC!.view.frame.size.height)
+            gsButtonVC.delegate = self
+            self.view.addSubview(self.gsButtonVC!.view)
+        }
 ~~~
 
-~~~objc
-- (void)focusMap
-{
-    if (CLLocationCoordinate2DIsValid(self.droneLocation)) {
-        MKCoordinateRegion region = {0};
-        region.center = self.droneLocation;
-        region.span.latitudeDelta = 0.001;
-        region.span.longitudeDelta = 0.001;
-
-        [self.mapView setRegion:region animated:YES];
+~~~Swift
+    func focusMap() {
+        guard let droneLocation = self.droneLocation else {
+            return
+        }
+        
+        if CLLocationCoordinate2DIsValid(droneLocation) {
+            let center = CLLocationCoordinate2D(latitude: droneLocation.latitude, longitude: droneLocation.longitude)
+            let span = MKCoordinateSpan(latitudeDelta: 0.001, longitudeDelta: 0.001)
+            let region = MKCoordinateRegion(center: center, span: span)
+            self.mapView.setRegion(region, animated: true)
+        }
     }
-}
 ~~~
 
 Finally, implement **DJIGSButtonViewController**'s delegate methods, as shown below:
 
-~~~objc
-#pragma mark - DJIGSButtonViewController Delegate Methods
-- (void)stopBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-}
-
-- (void)clearBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-    [self.mapController cleanAllPointsWithMapView:self.mapView];
-}
-
-- (void)focusMapBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-    [self focusMap];
-}
-
-- (void)configBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-
-}
-
-- (void)startBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-}
-
-- (void)switchToMode:(DJIGSViewMode)mode inGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-    if (mode == DJIGSViewMode_EditMode) {
-        [self focusMap];
+~~~Swift
+    //MARK: - DJIGSButtonViewController Delegate Methods
+    func stopBtnActionIn(gsBtnVC: GSButtonViewController) {
+        self.missionOperator()?.stopMission(completion: { (error:Error?) in
+            if let error = error {
+                let failedMessage = "Stop Mission Failed: \(error.localizedDescription)"
+                showAlertWith(failedMessage)
+            } else {
+                showAlertWith("Stop Mission Finished")
+            }
+        })
     }
-}
-
-- (void)addBtn:(UIButton *)button withActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-    if (self.isEditingPoints) {
-        self.isEditingPoints = NO;
-        [button setTitle:@"Add" forState:UIControlStateNormal];
-    }else
-    {
-        self.isEditingPoints = YES;
-        [button setTitle:@"Finished" forState:UIControlStateNormal];
+    
+    func clearBtnActionIn(gsBtnVC: GSButtonViewController) {
+        self.mapController?.cleanAllPoints(with: self.mapView)
     }
-}
+    
+    func focusMapBtnActionIn(gsBtnVC: GSButtonViewController) {
+        self.focusMap()
+    }
+    
+    func startBtnActionIn(gsBtnVC: GSButtonViewController) {
+        self.missionOperator()?.startMission(completion: { (error:Error?) in
+            if let error = error {
+                showAlertWith("Start Mission Failed: \(error.localizedDescription)")
+            } else {
+                showAlertWith("Mission Started")
+            }
+        })
+    }
+    
+    func add(button: UIButton, actionIn gsBtnVC: GSButtonViewController) {
+        if self.isEditingPoints {
+            self.isEditingPoints = false
+            button.setTitle("Add", for: UIControl.State.normal)
+        } else {
+            self.isEditingPoints = true
+            button.setTitle("Finished", for: UIControl.State.normal)
+        }
+    }
+    
+    func configBtnActionIn(gsBtnVC: GSButtonViewController) {
+        guard let wayPoints = self.mapController?.editPoints else {
+            showAlertWith("No waypoints")
+            return
+        }
+        if wayPoints.count < 2 {
+            showAlertWith("Not enough waypoints for mission")
+            return
+        }
+        
+        UIView.animate(withDuration: 0.25) { [weak self] () in
+            self?.waypointConfigVC?.view.alpha = 1.0
+        }
+
+        self.waypointMission?.removeAllWaypoints()
+        
+        if self.waypointMission == nil {
+            self.waypointMission = DJIMutableWaypointMission()
+        }
+        
+        for location in wayPoints {
+            if CLLocationCoordinate2DIsValid(location.coordinate) {
+                self.waypointMission?.add(DJIWaypoint(coordinate: location.coordinate))
+            }
+        }
+        
+    }
 
 ~~~
 
@@ -986,12 +841,12 @@ Now, let's build and run the project and try to press the **Edit** and **Back** 
 
 Let's go to **DJIWaypoint.h** file and check it out. For example, you can use:
 
-~~~objc
+~~~Swift
 -(id) initWithCoordinate:(CLLocationCoordinate2D)coordinate;
 ~~~
 to create a waypoint object with a specific coordinate. Once you create a waypoint, you can add a **DJIWaypointAction** to it by calling:
 
-~~~objc
+~~~Swift
 -(BOOL) addAction:(DJIWaypointAction*)action;
 ~~~
 
@@ -1001,13 +856,13 @@ Moreover, with waypoints, you have the ability to set the coordinate, altitude, 
 
 A DJIWaypointMission is used when you want to upload, start and stop a Waypoint Mission. You can add waypoints of type **DJIWaypoint** using the method:
 
-~~~objc
+~~~Swift
 - (void)addWaypoint:(DJIWaypoint *_Nonnull)waypoint;
 ~~~
 
 On the contrary, you can also delete waypoints from a task by using the method:
 
-~~~objc
+~~~Swift
 - (void)removeWaypoint:(DJIWaypoint *_Nonnull)waypoint;
 ~~~
 
@@ -1027,187 +882,149 @@ In the Waypoint Configuration ViewController, we use a UITextField to let the us
 
 At the bottom, we add two UIButtons for the **Cancel** and **Finish** actions. For more details about the settings, such as frame's position, frame's size, and background color of each UI element, please check the DJIWaypointConfigViewController.xib file in the downloaded project source code.
 
-Now, let's create IBOutlets and IBActions for each of the UI elements in the DJIWaypointConfigViewController.h file, as shown below:
+Now, let's create IBOutlets and IBActions for each of the UI elements in the WaypointConfigViewController.swift file, as shown below:
 
-~~~objc
-#import <UIKit/UIKit.h>
+~~~Swift
+import Foundation
+import UIKit
 
-@class DJIWaypointConfigViewController;
-
-@protocol DJIWaypointConfigViewControllerDelegate <NSObject>
-
-- (void)cancelBtnActionInDJIWaypointConfigViewController:(DJIWaypointConfigViewController *)waypointConfigVC;
-- (void)finishBtnActionInDJIWaypointConfigViewController:(DJIWaypointConfigViewController *)waypointConfigVC;
-
-@end
-
-@interface DJIWaypointConfigViewController : UIViewController
-
-@property (weak, nonatomic) IBOutlet UITextField *altitudeTextField;
-@property (weak, nonatomic) IBOutlet UITextField *autoFlightSpeedTextField;
-@property (weak, nonatomic) IBOutlet UITextField *maxFlightSpeedTextField;
-@property (weak, nonatomic) IBOutlet UISegmentedControl *actionSegmentedControl;
-@property (weak, nonatomic) IBOutlet UISegmentedControl *headingSegmentedControl;
-
-@property (weak, nonatomic) id <DJIWaypointConfigViewControllerDelegate>delegate;
-
-- (IBAction)cancelBtnAction:(id)sender;
-- (IBAction)finishBtnAction:(id)sender;
-
-@end
-~~~
-
-Here, we also create two "DJIWaypointConfigViewControllerDelegate" delegate methods that are called when **Cancel** and **Finish** buttons are pressed.
-
-Next, let's replace the code in the DJIWaypointConfigViewController.m file with the following code:
-
-~~~objc
-#import "DJIWaypointConfigViewController.h"
-@interface DJIWaypointConfigViewController ()
-@end
-
-@implementation DJIWaypointConfigViewController
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    [self initUI];
+protocol WaypointConfigViewControllerDelegate : AnyObject {
+    func cancelBtnActionInDJIWaypointConfigViewController(viewController : WaypointConfigViewController)
+    func finishBtnActionInDJIWaypointConfigViewController(viewController : WaypointConfigViewController)
 }
 
-- (void)didReceiveMemoryWarning {
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
-}
+class WaypointConfigViewController : UIViewController {
+    @IBOutlet weak var altitudeTextField: UITextField!
+    @IBOutlet weak var autoFlightSpeedTextField: UITextField!
+    @IBOutlet weak var maxFlightSpeedTextField: UITextField!
+    @IBOutlet weak var actionSegmentedControl: UISegmentedControl!
+    @IBOutlet weak var headingSegmentedControl: UISegmentedControl!
 
-- (void)initUI
-{
-    self.altitudeTextField.text = @"100"; //Set the altitude to 100
-    self.autoFlightSpeedTextField.text = @"8"; //Set the autoFlightSpeed to 8
-    self.maxFlightSpeedTextField.text = @"10"; //Set the maxFlightSpeed to 10
-    [self.actionSegmentedControl setSelectedSegmentIndex:1]; //Set the finishAction to DJIWaypointMissionFinishedGoHome
-    [self.headingSegmentedControl setSelectedSegmentIndex:0]; //Set the headingMode to DJIWaypointMissionHeadingAuto
+    weak var delegate : WaypointConfigViewControllerDelegate?
+    
+    init() {
+        super.init(nibName: "WaypointConfigViewController", bundle: Bundle.main)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        self.initUI()
+    }
 
-}
+    func initUI() {
+        self.altitudeTextField.text = "20" //Set the altitude to 20
+        self.autoFlightSpeedTextField.text = "8" //Set the autoFlightSpeed to 8
+        self.maxFlightSpeedTextField.text = "10" //Set the maxFlightSpeed to 10
+        self.actionSegmentedControl.selectedSegmentIndex = 1 //Set the finishAction to DJIWaypointMissionFinishedGoHome
+        self.headingSegmentedControl.selectedSegmentIndex = 0 //Set the headingMode to DJIWaypointMissionHeadingAuto
+    }
 
-- (IBAction)cancelBtnAction:(id)sender {
-    if ([_delegate respondsToSelector:@selector(cancelBtnActionInDJIWaypointConfigViewController:)]) {
-        [_delegate cancelBtnActionInDJIWaypointConfigViewController:self];
+    @IBAction func cancelBtnAction(_ sender: Any) {
+        self.delegate?.cancelBtnActionInDJIWaypointConfigViewController(viewController:self)
+    }
+
+    @IBAction func finishBtnAction(_ sender: Any) {
+        self.delegate?.finishBtnActionInDJIWaypointConfigViewController(viewController: self)
     }
 }
-
-- (IBAction)finishBtnAction:(id)sender {
-    if ([_delegate respondsToSelector:@selector(finishBtnActionInDJIWaypointConfigViewController:)]) {
-        [_delegate finishBtnActionInDJIWaypointConfigViewController:self];
-    }
-}
-
-@end
 ~~~
 
 In the code above, we create an **initUI** method, which is called in the viewDidload method, to initialize the UI controls with some default data. For example, we set the default text for the **altitudeTextField** to **100**, so there is no need for the user to type in a custom altitude value in the textField when the application is first opened. They will be able to press the **Finish** button right away instead of having to change the settings before they start.
 
 ## Implementing the DJIWaypoint Mission
 
-### Adding the DJIWaypointConfigViewController to DJIRootViewController
+### Adding the DJIWaypointConfigViewController to RootViewController
 
-Now,let's go to DJIRootViewController.m file, add the DJIWaypointConfigViewController.h header file at the top, and create a property of type **DJIWaypointConfigViewController** with the name "waypointConfigVC". Then, implement the DJIWaypointConfigViewControllerDelegate protocol, as shown below:
+Now,let's go to RootViewController.m file, add the DJIWaypointConfigViewController.h header file at the top, and create a property of type **DJIWaypointConfigViewController** with the name "waypointConfigVC". Then, implement the DJIWaypointConfigViewControllerDelegate protocol, as shown below:
 
-~~~objc
-#import "DJIWaypointConfigViewController.h"
+~~~Swift
+class RootViewController : UIViewController, GSButtonViewControllerDelegate, WaypointConfigViewControllerDelegate, MKMapViewDelegate, CLLocationManagerDelegate, DJISDKManagerDelegate, DJIFlightControllerDelegate {
 
-@interface DJIRootViewController ()<DJIGSButtonViewControllerDelegate, DJIWaypointConfigViewControllerDelegate, MKMapViewDelegate, CLLocationManagerDelegate, DJISDKManagerDelegate, DJIFlightControllerDelegate>
+    var isEditingPoints = false
+    var gsButtonVC : GSButtonViewController?
+    var waypointConfigVC : WaypointConfigViewController?
 
-@property (nonatomic, assign)BOOL isEditingPoints;
-@property (nonatomic, strong)DJIGSButtonViewController *gsButtonVC;
-@property (nonatomic, strong)DJIWaypointConfigViewController *waypointConfigVC;
+    ...
+}
 ~~~
 
-Next, let's add some code to initialize the **waypointConfigVC** instance variable and set its delegate as "DJIRootViewController" at the bottom of the **initUI** method:
+Next, let's add some code to initialize the **waypointConfigVC** instance variable and set its delegate as "RootViewController" at the bottom of the **initUI** method:
 
-~~~objc
--(void) initUI
-{
-    self.modeLabel.text = @"N/A";
-    self.gpsLabel.text = @"0";
-    self.vsLabel.text = @"0.0 M/S";
-    self.hsLabel.text = @"0.0 M/S";
-    self.altitudeLabel.text = @"0 M";
+~~~Swift
+    func initUI() {
+        self.modeLabel.text = "N/A"
+        self.gpsLabel.text = "0"
+        self.vsLabel.text = "0.0 M/S"
+        self.hsLabel.text = "0.0 M/S"
+        self.altitudeLabel.text = "0 M"
+        
+        self.gsButtonVC = GSButtonViewController()
+        if let gsButtonVC = self.gsButtonVC {
+            gsButtonVC.view.frame = CGRect(x: 0.0,
+                                           y: self.topBarView.frame.origin.y + self.topBarView.frame.size.height,
+                                           width: self.gsButtonVC!.view.frame.size.width,
+                                           height: self.gsButtonVC!.view.frame.size.height)
+            gsButtonVC.delegate = self
+            self.view.addSubview(self.gsButtonVC!.view)
+        }
 
-    self.gsButtonVC = [[DJIGSButtonViewController alloc] initWithNibName:@"DJIGSButtonViewController" bundle:[NSBundle mainBundle]];
-    [self.gsButtonVC.view setFrame:CGRectMake(0, self.topBarView.frame.origin.y + self.topBarView.frame.size.height, self.gsButtonVC.view.frame.size.width, self.gsButtonVC.view.frame.size.height)];
-    self.gsButtonVC.delegate = self;
-    [self.view addSubview:self.gsButtonVC.view];
+        self.waypointConfigVC = WaypointConfigViewController()
 
-    self.waypointConfigVC = [[DJIWaypointConfigViewController alloc] initWithNibName:@"DJIWaypointConfigViewController" bundle:[NSBundle mainBundle]];
-    self.waypointConfigVC.view.alpha = 0;
+        self.waypointConfigVC?.view.alpha = 0
+        self.waypointConfigVC?.view.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin, .flexibleTopMargin, .flexibleBottomMargin]
+        self.waypointConfigVC?.view.center = self.view.center
+        if UIDevice.current.userInterfaceIdiom == UIUserInterfaceIdiom.pad {
+            self.waypointConfigVC?.view.center = self.view.center
+        }
+        
+        self.waypointConfigVC?.delegate = self
+        if let _ = self.waypointConfigVC {
+            self.view.addSubview(self.waypointConfigVC!.view)
+        }
+    }
+~~~
 
-    self.waypointConfigVC.view.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin|UIViewAutoresizingFlexibleRightMargin|UIViewAutoresizingFlexibleTopMargin|UIViewAutoresizingFlexibleBottomMargin;
+In the code above, we set the **alpha** property of the **waypointConfigVC**'s view to 0 to initially hide the view. Then, center its location to the center of RootViewController's view when it runs on iPad.
 
-    CGFloat configVCOriginX = (CGRectGetWidth(self.view.frame) - CGRectGetWidth(self.waypointConfigVC.view.frame))/2;
-    CGFloat configVCOriginY = CGRectGetHeight(self.topBarView.frame) + CGRectGetMinY(self.topBarView.frame) + 8;
+Furthermore, implement the **WaypointConfigViewControllerDelegate** methods, as shown below:
 
-    [self.waypointConfigVC.view setFrame:CGRectMake(configVCOriginX, configVCOriginY, CGRectGetWidth(self.waypointConfigVC.view.frame), CGRectGetHeight(self.waypointConfigVC.view.frame))];
+~~~Swift
+    //MARK - WaypointConfigViewControllerDelegate Methods
 
-    if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) //Check if it's using iPad and center the config view
-    {
-        self.waypointConfigVC.view.center = self.view.center;
+    func cancelBtnActionInDJIWaypointConfigViewController(viewController: WaypointConfigViewController) {
+        UIView.animate(withDuration: 0.25) { [weak self] () in
+            self?.waypointConfigVC?.view.alpha = 0
+        }
     }
 
-    self.waypointConfigVC.delegate = self;
-    [self.view addSubview:self.waypointConfigVC.view];
-
-}
-~~~
-
-In the code above, we set the **alpha** property of the **waypointConfigVC**'s view to 0 to initially hide the view. Then, center its location to the center of DJIRootViewController's view when it runs on iPad.
-
-Furthermore, implement the **DJIWaypointConfigViewControllerDelegate** methods, as shown below:
-
-~~~objc
-#pragma mark - DJIWaypointConfigViewControllerDelegate Methods
-
-- (void)cancelBtnActionInDJIWaypointConfigViewController:(DJIWaypointConfigViewController *)waypointConfigVC
-{
-    WeakRef(weakSelf);
-
-    [UIView animateWithDuration:0.25 animations:^{
-        WeakReturn(weakSelf);
-        weakSelf.waypointConfigVC.view.alpha = 0;
-    }];
-}
-
-- (void)finishBtnActionInDJIWaypointConfigViewController:(DJIWaypointConfigViewController *)waypointConfigVC
-{
-    WeakRef(weakSelf);
-
-    [UIView animateWithDuration:0.25 animations:^{
-        WeakReturn(weakSelf);
-        weakSelf.waypointConfigVC.view.alpha = 0;
-    }];
-
-}
+    func finishBtnActionInDJIWaypointConfigViewController(viewController: WaypointConfigViewController) {
+        
+        UIView.animate(withDuration: 0.25) { [weak self] () in
+            self?.waypointConfigVC?.view.alpha = 0
+        }
+    }
 ~~~
 
 In the first delegate method, we use a class method from UIView to animate the changing **alpha** value of **waypointConfigVC**'s view:
 
-~~~objc
-+ (void)animateWithDuration:(NSTimeInterval)duration animations:(void (^)(void))animations NS_AVAILABLE_IOS(4_0);
+~~~Swift
+    open class func animate(withDuration duration: TimeInterval, animations: @escaping () -> Void)
 ~~~
 
 In the second delegate method, we do the same thing as we did in the first delegate method.
 
 Lastly, replace the code in the **configBtnActionInGSButtonVC:** method with the following code to show the **waypointConfigVC**'s view when the user presses the **Config** button:
 
-~~~objc
-- (void)configBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-    WeakRef(weakSelf);
-
-    [UIView animateWithDuration:0.25 animations:^{
-        WeakReturn(weakSelf);
-        weakSelf.waypointConfigVC.view.alpha = 1.0;
-    }];
-
-}
+~~~Swift
+    func configBtnActionIn(gsBtnVC: GSButtonViewController) {
+        UIView.animate(withDuration: 0.25) { [weak self] () in
+            self?.waypointConfigVC?.view.alpha = 1.0
+        }
+    }
 ~~~
 
 Once that's done, let's build and run the project. Try to show the **waypointConfigVC**'s view by pressing the **Edit** button and **Config** button:
@@ -1216,120 +1033,114 @@ Once that's done, let's build and run the project. Try to show the **waypointCon
 
 ### Handling The DJIWaypoint Mission
 
-Now let's go back to DJIRootViewController.m file. Create a property of type **DJIMutableWaypointMission** and named it as "waypointMission" as shown below:
+Now let's go back to RootViewController.swift file. Create a property of type **DJIMutableWaypointMission** and named it as "waypointMission" as shown below:
 
-~~~objc
-@property(nonatomic, strong) DJIMutableWaypointMission* waypointMission;
+~~~Swift
+    var waypointMission : DJIMutableWaypointMission?
 ~~~
 
 We use **DJIMutableWaypointMission** here since it represents a waypoint mission that can be changed by modifying its parameters.
 
-Next, replace the code in **configBtnActionInGSButtonVC** delegate method with the followings:
+Next, replace the code in **configBtnActionInGSButtonVC** delegate method with the following:
 
-~~~objc
-- (void)configBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-    WeakRef(weakSelf);
+~~~Swift
+    func configBtnActionIn(gsBtnVC: GSButtonViewController) {
+        guard let wayPoints = self.mapController?.editPoints else {
+            showAlertWith("No waypoints")
+            return
+        }
+        if wayPoints.count < 2 {
+            showAlertWith("Not enough waypoints for mission")
+            return
+        }
+        
+        UIView.animate(withDuration: 0.25) { [weak self] () in
+            self?.waypointConfigVC?.view.alpha = 1.0
+        }
 
-    NSArray* wayPoints = self.mapController.wayPoints;
-    if (wayPoints == nil || wayPoints.count < 2) { //DJIWaypointMissionMinimumWaypointCount is 2.
-        ShowMessage(@"No or not enough waypoints for mission", @"", nil, @"OK");
-        return;
-    }
-
-    [UIView animateWithDuration:0.25 animations:^{
-        WeakReturn(weakSelf);
-        weakSelf.waypointConfigVC.view.alpha = 1.0;
-    }];
-
-    if (self.waypointMission){
-        [self.waypointMission removeAllWaypoints];
-    }
-    else{
-        self.waypointMission = [[DJIMutableWaypointMission alloc] init];
-    }
-
-    for (int i = 0; i < wayPoints.count; i++) {
-        CLLocation* location = [wayPoints objectAtIndex:i];
-        if (CLLocationCoordinate2DIsValid(location.coordinate)) {
-            DJIWaypoint* waypoint = [[DJIWaypoint alloc] initWithCoordinate:location.coordinate];
-            [self.waypointMission addWaypoint:waypoint];
+        self.waypointMission?.removeAllWaypoints()
+        
+        self.waypointMission = self.waypointMission ?? DJIMutableWaypointMission()
+        
+        for location in wayPoints {
+            if CLLocationCoordinate2DIsValid(location.coordinate) {
+                self.waypointMission?.add(DJIWaypoint(coordinate: location.coordinate))
+            }
         }
     }
-}
 ~~~
 
-In the code above, we create a local NSArray variable named **wayPoints** and assign its value as the mapController's **wayPoints** array. Next, check whether or not the array exists or whether or not it's empty. If it is empty or does not exist, show a UIAlertView letting the user know there are no waypoints for the mission.
+In the code above, we create a local array named **wayPoints** and assign its value as the mapController's **wayPoints** array. Next, check whether or not the array exists or whether or not it's empty. If it is empty or does not exist, show a UIAlertView letting the user know there are no waypoints for the mission.
 
 **Important**: For safety, it's important to add logic to check the GPS satellite count, before the start of the mission. If the satellite count is less than 6, you should prevent the user from starting the waypoint mission and show a warning. Since we are using the DJI Assistant 2 Simulator here, we are testing the application under a perfect situation, where the GPS satellite count is always 10.
 
 Next, we use a for loop to get the **CLLocation** for each waypoint from the **wayPoints** array and check if its **coordinate** is valid by using the method:
 
-~~~objc
-BOOL CLLocationCoordinate2DIsValid(CLLocationCoordinate2D coord);
+~~~Swift
+public func CLLocationCoordinate2DIsValid(_ coord: CLLocationCoordinate2D) -> Bool
 ~~~
 
 Finally, if the coordinate is valid, we create a waypoint of type **DJIWaypoint** and add it to the **waypointMission**.
 
-Once that is complete, let's create a `missionOperator` method and go to DJIWaypointConfigViewController's delegate method **finishBtnActionInDJIWaypointConfigViewController** and replace the code inside with the followings:
+Once that is complete, let's create a `missionOperator` method and go to WaypointConfigViewController's delegate method **finishBtnActionInDJIWaypointConfigViewController** and replace the code inside with the followings:
 
-~~~objc
--(DJIWaypointMissionOperator *)missionOperator {
-    return [DJISDKManager missionControl].waypointMissionOperator;
-}
-
-- (void)showAlertViewWithTitle:(NSString *)title withMessage:(NSString *)message
-{
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
-    UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil];
-    [alert addAction:okAction];
-    [self presentViewController:alert animated:YES completion:nil];
-}
-
-- (void)finishBtnActionInDJIWaypointConfigViewController:(DJIWaypointConfigViewController *)waypointConfigVC
-{
-    WeakRef(weakSelf);
-
-    [UIView animateWithDuration:0.25 animations:^{
-        WeakReturn(weakSelf);
-        weakSelf.waypointConfigVC.view.alpha = 0;
-    }];
-
-    for (int i = 0; i < self.waypointMission.waypointCount; i++) {
-        DJIWaypoint* waypoint = [self.waypointMission waypointAtIndex:i];
-        waypoint.altitude = [self.waypointConfigVC.altitudeTextField.text floatValue];
+~~~Swift
+    func missionOperator() -> DJIWaypointMissionOperator? {
+        return DJISDKManager.missionControl()?.waypointMissionOperator()
     }
 
-    self.waypointMission.maxFlightSpeed = [self.waypointConfigVC.maxFlightSpeedTextField.text floatValue];
-    self.waypointMission.autoFlightSpeed = [self.waypointConfigVC.autoFlightSpeedTextField.text floatValue];
-    self.waypointMission.headingMode = (DJIWaypointMissionHeadingMode)self.waypointConfigVC.headingSegmentedControl.selectedSegmentIndex;
-    [self.waypointMission setFinishedAction:(DJIWaypointMissionFinishedAction)self.waypointConfigVC.actionSegmentedControl.selectedSegmentIndex];
+    func showAlertViewWith(title:String, message:String?) {
+        let alert = UIAlertController(title: title, message: message ?? "", preferredStyle: UIAlertController.Style.alert)
+        let okAction = UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil)
+        alert.addAction(okAction)
+        self.present(alert, animated: true, completion: nil)
+    }
 
-    [[self missionOperator] loadMission:self.waypointMission];
-
-    WeakRef(target);
-
-    [[self missionOperator] addListenerToFinished:self withQueue:dispatch_get_main_queue() andBlock:^(NSError * _Nullable error) {
-
-        WeakReturn(target);
-
-        if (error) {
-            [target showAlertViewWithTitle:@"Mission Execution Failed" withMessage:[NSString stringWithFormat:@"%@", error.description]];
+    func finishBtnActionInDJIWaypointConfigViewController(viewController: WaypointConfigViewController) {
+        
+        UIView.animate(withDuration: 0.25) { [weak self] () in
+            self?.waypointConfigVC?.view.alpha = 0
         }
-        else {
-            [target showAlertViewWithTitle:@"Mission Execution Finished" withMessage:nil];
+        
+        if let waypointMission = self.waypointMission, let waypointConfigVC = self.waypointConfigVC {
+            for waypoint in waypointMission.allWaypoints() {
+                let altitude = Float(waypointConfigVC.altitudeTextField.text ?? "20") ?? 20.0
+                waypoint.altitude = altitude
+            }
         }
-    }];
 
-    [[self missionOperator] uploadMissionWithCompletion:^(NSError * _Nullable error) {
-        if (error){
-            NSString* uploadError = [NSString stringWithFormat:@"Upload Mission failed:%@", error.description];
-            ShowMessage(@"", uploadError, nil, @"OK");
-        }else {
-            ShowMessage(@"", @"Upload Mission Finished", nil, @"OK");
+        if let waypointConfigVC = self.waypointConfigVC {
+            self.waypointMission?.maxFlightSpeed = ((self.waypointConfigVC?.maxFlightSpeedTextField.text ?? "0.0") as NSString).floatValue
+            self.waypointMission?.autoFlightSpeed = ((self.waypointConfigVC?.autoFlightSpeedTextField.text ?? "0.0") as NSString).floatValue
+            
+            let selectedHeadingIndex = waypointConfigVC.headingSegmentedControl.selectedSegmentIndex
+            self.waypointMission?.headingMode = DJIWaypointMissionHeadingMode(rawValue:UInt(selectedHeadingIndex)) ?? DJIWaypointMissionHeadingMode.auto
+            
+            let selectedActionIndex = waypointConfigVC.actionSegmentedControl.selectedSegmentIndex
+            self.waypointMission?.finishedAction = DJIWaypointMissionFinishedAction(rawValue: UInt8(selectedActionIndex)) ?? DJIWaypointMissionFinishedAction.noAction
         }
-    }];
-}
+        
+        if let waypointMission = self.waypointMission {
+            self.missionOperator()?.load(waypointMission)
+            
+            self.missionOperator()?.addListener(toFinished: self, with: DispatchQueue.main, andBlock: { [weak self] (error: Error?) in
+                if let error = error {
+                    self?.showAlertViewWith(title: "Mission Execution Failed", message: error.localizedDescription)
+                } else {
+                    self?.showAlertViewWith(title: "Mission Execution Finished", message: nil)
+                }
+            })
+        }
+        
+        self.missionOperator()?.uploadMission(completion: { (error:Error?) in
+            if let error = error {
+                let uploadErrorString = "Upload Mission failed:\( error.localizedDescription)"
+                showAlertWith(uploadErrorString)
+            } else {
+                showAlertWith("Upload Mission Finished")
+            }
+        })
+    }
 ~~~
 
 Above, we use a for loop to set the **altitude** property of each DJIWaypoint in the **waypointMission** waypoint array based on the settings that are set in the DJIWaypointConfigViewController. After that is complete, we update the "maxFlightSpeed", "autoFlightSpeed", "headingMode" and "finishedAction" properties of **waypointMission**. Then we invoke the `loadMission:` method of **DJIWaypointMissionOperator** to load the `waypointMission` into the operator.
@@ -1340,38 +1151,33 @@ Lastly, we call the `uploadMissionWithCompletion:` method of **DJIWaypointMissio
 
 Once you finished the above step, let's implement the `startBtnActionInGSButtonVC` method  as shown below:
 
-~~~objc
-- (void)startBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-    [[self missionOperator] startMissionWithCompletion:^(NSError * _Nullable error) {
-        if (error){
-            ShowMessage(@"Start Mission Failed", error.description, nil, @"OK");
-        }else
-        {
-            ShowMessage(@"", @"Mission Started", nil, @"OK");
-        }
-    }];
-}
+~~~Swift
+    func startBtnActionIn(gsBtnVC: GSButtonViewController) {
+        self.missionOperator()?.startMission(completion: { (error:Error?) in
+            if let error = error {
+                showAlertWith("Start Mission Failed: \(error.localizedDescription)")
+            } else {
+                showAlertWith("Mission Started")
+            }
+        })
+    }
 ~~~
 
 Here, call the `startMissionWithCompletion:` method of DJIWaypointMissionOperator to start the DJIWaypoint mission! Then create a UIAlertView to display error message when start mission failed.
 
-Finally, let's implement the **stopMissionExecutionWithCompletion** method of DJIMissionControl in the **DJIGSButtonViewController** delegate method to stop the waypoint mission, as shown below:
+Finally, let's implement the **stopMissionExecutionWithCompletion** method of DJIMissionControl in the **GSButtonViewController** delegate method to stop the waypoint mission, as shown below:
 
-~~~objc
-- (void)stopBtnActionInGSButtonVC:(DJIGSButtonViewController *)GSBtnVC
-{
-    [[self missionOperator] stopMissionWithCompletion:^(NSError * _Nullable error) {
-        if (error){
-            NSString* failedMessage = [NSString stringWithFormat:@"Stop Mission Failed: %@", error.description];
-            ShowMessage(@"", failedMessage, nil, @"OK");
-        }else
-        {
-            ShowMessage(@"", @"Stop Mission Finished", nil, @"OK");
-        }
-
-    }];
-}
+~~~Swift
+    func stopBtnActionIn(gsBtnVC: GSButtonViewController) {
+        self.missionOperator()?.stopMission(completion: { (error:Error?) in
+            if let error = error {
+                let failedMessage = "Stop Mission Failed: \(error.localizedDescription)"
+                showAlertWith(failedMessage)
+            } else {
+                showAlertWith("Stop Mission Finished")
+            }
+        })
+    }
 ~~~
 
 ## Showtime
