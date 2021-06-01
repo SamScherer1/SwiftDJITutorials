@@ -155,7 +155,7 @@ fileprivate let rotationAngle = 45.0
 ~~~~
 
 ~~~swift
--(IBAction)onCaptureButtonClicked:(id)sender {
+@IBAction func onCaptureButtonClicked(_ sender: Any) {
     self.shootPanoRotateAircraft()
 }
 
@@ -165,94 +165,110 @@ Furthermore, implement the `-(DJIFlightController*) fetchFlightController` metho
 
 ~~~swift
 
-- (DJIFlightController*) fetchFlightController {
-    if (![DJISDKManager product]) {
-        return nil;
+    func fetchFlightController() -> DJIFlightController? {
+        let aircraft = DJISDKManager.product() as? DJIAircraft
+        return aircraft?.flightController
     }
-    if ([[DJISDKManager product] isKindOfClass:[DJIAircraft class]]) {
-        return ((DJIAircraft*)[DJISDKManager product]).flightController;
-    }
-    return nil;
-}
 
-- (void)productConnected:(DJIBaseProduct *)product
-{
-    if (product) {
-        DJICamera* camera = [self fetchCamera];
-        if (camera != nil) {
-            camera.delegate = self;
-            [camera.playbackManager setDelegate:self];
+    func productConnected(_ product: DJIBaseProduct?) {
+        if let camera = self.fetchCamera() {
+            camera.delegate = self
+            camera.playbackManager?.delegate = self
+        }
+
+        if let flightController = self.fetchFlightController() {
+            flightController.delegate = self
+            self.enableVirtualStick()
         }
     }
 
-    DJIFlightController *flightController = [self fetchFlightController];
-    if (flightController) {
-        [flightController setDelegate:self];
-        [flightController setYawControlMode:DJIVirtualStickYawControlModeAngle];
-        [flightController setRollPitchCoordinateSystem:DJIVirtualStickFlightCoordinateSystemGround];
-
-        [flightController setVirtualStickModeEnabled:YES withCompletion:^(NSError * _Nullable error) {
-            if (error) {
-                NSLog(@"Enable VirtualStickControlMode Failed");
+    func enableVirtualStick() {
+        if let flightController = self.fetchFlightController() {
+            flightController.yawControlMode = DJIVirtualStickYawControlMode.angle
+            flightController.rollPitchCoordinateSystem = DJIVirtualStickFlightCoordinateSystem.ground
+            flightController.setVirtualStickModeEnabled(true) { [weak self] (error:Error?) in
+                if let error = error {
+                    print("Enable VirtualStickControlMode Failed with error: \(error.localizedDescription)")
+                }
             }
-        }];
+        }
     }
-}
 ~~~
 
-As the code shown above, we configure the flightController's **delegate**, and **yawControlMode** properties. Then invoke the `setVirtualStickModeEnabled:withCompletion:` method to prepare for the virtual stick control.
+As the code shown above, in the method enableVirtualStick() we configure the flightController's **delegate**, and **yawControlMode** properties. Then invoke the `setVirtualStickModeEnabled:withCompletion:` method to prepare for the virtual stick control.
 
 **3.** Using the flightController virtual stick api is similar to sending commands using your remote controller. The virtual stick api can be used to directly specify the pitch, roll, yaw and throttle values of the drone and must be called with a certain frequency(Like 10 Hz) determined by the drone's flight controller, otherwise the flight controller will assume that the connection is lost, and the command may not be executed successfully. Hense, we should use a NSTimer to send virtual stick command in 10Hz as shown below:
 
 ~~~swift
-- (void)rotateDroneWithJoystick
-{
+    func executeVirtualStickControl() {
+        let camera = self.fetchCamera()
+        
+        for photoNumber in 0 ..< numberOfPhotosInPanorama {
+            //Filter the angle between -180 ~ 0, 0 ~ 180
+            var yawAngle = rotationAngle * Double(photoNumber)
+            if yawAngle > 180.0 {
+                yawAngle = yawAngle - 360.0
+            }
+            
+            let timer = Timer(timeInterval: 0.2, target: self, selector: #selector(rotateDrone), userInfo: ["YawAngle":yawAngle], repeats: true)
 
-   for(int i = 0;i < PHOTO_NUMBER; i++){
+            timer.fire()
 
-     float yawAngle = ROTATE_ANGLE*i;
-
-     if (yawAngle > 180) { //Filter the angle between -180 ~ 0, 0 ~ 180
-        yawAngle = yawAngle - 360;
-     }
-
-    NSTimer *timer =  [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(rotateDrone:) userInfo:@{@"YawAngle":@(yawAngle)} repeats:YES];
-    [timer fire];
-
-    [[NSRunLoop currentRunLoop]addTimer:timer forMode:NSDefaultRunLoopMode];
-    [[NSRunLoop currentRunLoop]runUntilDate:[NSDate dateWithTimeIntervalSinceNow:2]];
-
-    [timer invalidate];
-    timer = nil;
-   }
-
-}
-
-- (void)rotateDrone:(NSTimer *)timer
-{
-    NSDictionary *dict = [timer userInfo];
-    float yawAngle = [[dict objectForKey:@"YawAngle"] floatValue];
-
-    DJIFlightController *flightController = [self fetchFlightController];
-
-    DJIVirtualStickFlightControlData vsFlightCtrlData;
-    vsFlightCtrlData.pitch = 0;
-    vsFlightCtrlData.roll = 0;
-    vsFlightCtrlData.verticalThrottle = 0;
-    vsFlightCtrlData.yaw = yawAngle;
-
-    flightController.isVirtualStickAdvancedModeEnabled = YES;
-
-    [flightController sendVirtualStickFlightControlData:vsFlightCtrlData withCompletion:^(NSError * _Nullable error) {
-        if (error) {
-            NSLog(@"Send FlightControl Data Failed %@", error.description);
+            RunLoop.current.add(timer, forMode: RunLoop.Mode.default)
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 2))
+            timer.invalidate()
+            
+            //TODO: how to destroy the timer?
+            //        timer = nil;
+            
+            print("SS Shooting photo nunber \(photoNumber)")//TODO: remove these debug prints...
+            camera?.startShootPhoto(completion: { (error:Error?) in
+                if let error = error {
+                    print("SS Failed to shoot photo: \(error.localizedDescription)")
+                } else {
+                    print("SS Shot Photo!")
+                }
+            })
+            
+            sleep(2)
         }
-    }];
 
-}
+        let flightController = self.fetchFlightController()
+        if let flightController = flightController {
+            flightController.setVirtualStickModeEnabled(false) { [weak self] (error:Error?) in
+                if let error = error {
+                    print("Disable VirtualStickControlMode Failed with error: \(error.localizedDescription)")
+                    print("Retrying...")
+                    if let flightController = self?.fetchFlightController() {
+                        flightController.setVirtualStickModeEnabled(false, withCompletion: nil)
+                    }
+                }
+            }
+        }
+
+        DispatchQueue.main.async { [weak self] () in
+            self?.showAlertWith(title: "Capture Photos", message: "Capture finished")
+        }
+    }
+
+    @objc func rotateDrone(timer:Timer) {
+        guard let timerUserInfoDictionary = timer.userInfo as? [String:Float] else { return }
+        guard let yawAngle = timerUserInfoDictionary["YawAngle"] else { return }
+        let flightController = self.fetchFlightController()
+        let vsFlightControlData = DJIVirtualStickFlightControlData(pitch: 0,
+                                                                   roll: 0,
+                                                                   yaw: yawAngle,
+                                                                   verticalThrottle: 0)
+        flightController?.isVirtualStickAdvancedModeEnabled = true
+        flightController?.send(vsFlightControlData, withCompletion: { (error:Error?) in
+            if let error = error {
+                print("Send FlightControl Data Failed: \(error.localizedDescription)")
+            }
+        })
+    }
 ~~~
 
-You can set up the virtual stick flight control data by setting a **DJIVirtualStickFlightControlData** structure. As the code shows above, it use a for loop to control the drone to rotate 45 degrees for 8 times, each time the yawAngle will be updated, and assign its value to the corresponding yaw value of **DJIVirtualStickFlightControlData**:
+You can set up the virtual stick flight control data by setting a **DJIVirtualStickFlightControlData** structure. As the code shows above, it uses a for loop to control the drone to rotate 45 degrees for 8 times, each time the yawAngle will be updated, and assign its value to the corresponding yaw value of **DJIVirtualStickFlightControlData**:
 
 ~~~swift
 - (void)sendVirtualStickFlightControlData:(DJIVirtualStickFlightControlData)controlData withCompletion:(DJICompletionBlock)completion;
@@ -276,12 +292,12 @@ If you are not familiar with the DJI Assistant 2 Simulator, please check the [DJ
 
 We can invoke the following DJICamera method to shoot photos:
 
-~~~swift
+~~~objc
 - (void)startShootPhotoWithCompletion:(DJICompletionBlock)completion;
 ~~~
 
-Let's implement the methods as shown below to make the drone shoot photos automatically once it finish 45 degrees' rotation each time:
-
+Let's implement the methods as shown below to make the drone shoot photos after finishing rotating 45 degrees each time:
+TODO:resume here
 ~~~swift
 #pragma mark - Rotate Drone With Joystick Methods
 - (void)rotateDroneWithJoystick {
