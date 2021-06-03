@@ -297,77 +297,67 @@ We can invoke the following DJICamera method to shoot photos:
 ~~~
 
 Let's implement the methods as shown below to make the drone shoot photos after finishing rotating 45 degrees each time:
-TODO:resume here
+
 ~~~swift
-#pragma mark - Rotate Drone With Joystick Methods
-- (void)rotateDroneWithJoystick {
-
-    if([[DJISDKManager product].model isEqual: DJIAircraftModelNameSpark])
-    {
-        weakSelf(target);
-        [[DJISDKManager missionControl].activeTrackMissionOperator setGestureModeEnabled:NO withCompletion:^(NSError * _Nullable error) {
-            weakReturn(target);
-            if (error) {
-                NSLog(@"Set Gesture mode enabled failed");
-            }else{
-                [target setCameraModeToShootPhoto];
-            }
-        }];
-    }else{
-        [self setCameraModeToShootPhoto];
+//MARK: - Shoot Panorama By Rotating Aircraft Methods
+    func shootPanoRotateAircraft() {
+        if DJISDKManager.product()?.model == DJIAircraftModelNameSpark {
+            DJISDKManager.missionControl()?.activeTrackMissionOperator().setGestureModeEnabled(false, withCompletion: { [weak self] (error:Error?) in
+                if let error = error {
+                    print("Set Gesture mode enabled failed: \(error.localizedDescription)")
+                } else {
+                    self?.setCameraModeToShootPhoto()
+                }
+            })
+        } else {
+            self.setCameraModeToShootPhoto()//TODO: rename to something appropriate
+        }
     }
-}
 
--(void)setCameraModeToShootPhoto {
-    weakSelf(target);
-    DJICamera *camera = [target fetchCamera];
-    [camera getModeWithCompletion:^(DJICameraMode mode, NSError * _Nullable error) {
-        if (error == nil) {
-            if (mode == DJICameraModeShootPhoto) {
-                [target enableVirtualStick];
+    func setCameraModeToShootPhoto() {
+        let camera = self.fetchCamera()
+        camera?.getModeWithCompletion({ [weak self] (mode:DJICameraMode, error:Error?) in
+            if error == nil {
+                if mode == DJICameraMode.shootPhoto {
+                    self?.enableVirtualStick()
+                } else {
+                    camera?.setMode(DJICameraMode.shootPhoto, withCompletion: { [weak self] (error:Error?) in
+                        if error == nil {
+                            self?.enableVirtualStick()
+                        }
+                    })
+                }
             }
-            else {
-                [camera setMode:DJICameraModeShootPhoto withCompletion:^(NSError * _Nullable error) {
-                    weakReturn(target);
-                    if (error == nil) {
-                        [target enableVirtualStick];
+        })
+    }
+
+    //MARK: - DJISDKManagerDelegate Methods
+    func productConnected(_ product: DJIBaseProduct?) {
+        if let camera = self.fetchCamera() {
+            camera.delegate = self
+            camera.playbackManager?.delegate = self
+        }
+
+        if let flightController = self.fetchFlightController() {
+            flightController.delegate = self
+        }
+    }
+
+    func enableVirtualStick() {
+        if let flightController = self.fetchFlightController() {
+            flightController.yawControlMode = DJIVirtualStickYawControlMode.angle
+            flightController.rollPitchCoordinateSystem = DJIVirtualStickFlightCoordinateSystem.ground
+            flightController.setVirtualStickModeEnabled(true) { [weak self] (error:Error?) in
+                if let error = error {
+                    print("Enable VirtualStickControlMode Failed with error: \(error.localizedDescription)")
+                } else {
+                    DispatchQueue.main.async { [weak self] () in
+                        self?.executeVirtualStickControl()
                     }
-                }];
+                }
             }
         }
-    }];
-}
-
-#pragma mark DJISDKManagerDelegate Methods
-- (void)productConnected:(DJIBaseProduct *)product
-{
-    if (product) {
-        DJICamera* camera = [self fetchCamera];
-        if (camera != nil) {
-            camera.delegate = self;
-            [camera.playbackManager setDelegate:self];
-        }
     }
-
-    DJIFlightController *flightController = [self fetchFlightController];
-    if (flightController) {
-        [flightController setDelegate:self];
-    }
-}
-
--(void)enableVirtualStick {
-    DJIFlightController *flightController = [self fetchFlightController];
-    [flightController setYawControlMode:DJIVirtualStickYawControlModeAngle];
-    [flightController setRollPitchCoordinateSystem:DJIVirtualStickFlightCoordinateSystemGround];
-    [flightController setVirtualStickModeEnabled:YES withCompletion:^(NSError * _Nullable error) {
-        if (error) {
-            NSLog(@"Enable VirtualStickControlMode Failed");
-        }
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            [self executeVirtualStickControl];
-        });
-    }];
-}
 
 - (void)executeVirtualStickControl
 {
@@ -428,87 +418,87 @@ If you have an Inspire 1, you will benefit from being able to shoot photos witho
 **1.** let's implement the `- (DJIGimbal*) fetchGimbal` method to fetch the gimbal component:
 
 ~~~swift
-- (DJIGimbal*) fetchGimbal {
-    if (![DJISDKManager product]) {
-        return nil;
+    func fetchGimbal() -> DJIGimbal? {
+        return DJISDKManager.product()?.gimbal
     }
-    return [DJISDKManager product].gimbal;
-}
 ~~~
 
 **2.** Next, implement the **rotateGimbal** method as shown below to rotate the gimbal clockwise from the origin position to 360 degrees(45 degrees each time), then take photos between each rotation:
 
 ~~~swift
-#pragma mark - Rotate Gimbal Methods
-- (void)rotateGimbal {
-
-    DJICamera *camera = [self fetchCamera];
-    weakSelf(target);
-    [camera setMode:DJICameraModeShootPhoto withCompletion:^(NSError * _Nullable error) {
-        weakReturn(target);
-        if (!error) {
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                [target executeRotateGimbal];
-            });
+    //MARK: - Shoot Panorama By Rotating Gimbal Methods
+    func shootPanoRotateGimbal() {
+        guard let camera = self.fetchCamera() else {
+            print("fetchCamera returned nil")
+            return
         }
-    }];   
-}
-
-- (void)executeRotateGimbal
-{
-
-    DJIGimbal *gimbal = [self fetchGimbal];
-    __weak DJICamera *camera = [self fetchCamera];
-
-    //Reset Gimbal at the beginning
-    [gimbal resetWithCompletion:^(NSError * _Nullable error) {
-        if (error) {
-            NSLog(@"ResetGimbal Failed: %@", [NSString stringWithFormat:@"%@", error.description]);
-        }
-    }];
-    sleep(3);
-
-    //rotate the gimbal clockwise
-    float yawAngle = 0;
-
-    for(int i = 0; i < PHOTO_NUMBER; i++){
-
-        [camera setShootPhotoMode:DJICameraShootPhotoModeSingle withCompletion:^(NSError * _Nullable error) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [camera startShootPhotoWithCompletion:nil];
-            });
-        }];
-
-        sleep(2);
-
-        NSNumber *pitchRotation = @(0);
-        NSNumber *rollRotation = @(0);
-        NSNumber *yawRotation = @(yawAngle);
-
-        yawAngle += ROTATE_ANGLE;
-        if (yawAngle > 180.0) { //Filter the angle between -180 ~ 0, 0 ~ 180
-            yawAngle = yawAngle - 360;
-        }
-        yawRotation = @(yawAngle);
-
-        DJIGimbalRotation *rotation = [DJIGimbalRotation gimbalRotationWithPitchValue:pitchRotation rollValue:rollRotation                                                        yawValue:yawRotation time:1 mode:DJIGimbalRotationModeAbsoluteAngle];
-
-        [gimbal rotateWithRotation:rotation completion:^(NSError * _Nullable error) {
-            if (error) {
-                NSLog(@"Rotate Gimbal Failed: %@", [NSString stringWithFormat:@"%@", error.description]);
+        camera.setMode(DJICameraMode.shootPhoto) { [weak self] (error:Error?) in
+            if error == nil {
+                DispatchQueue.global(qos: DispatchQoS.QoSClass.default).async {
+                    self?.executeRotateGimbal()
+                }
             }
-        }];
-
-        sleep(2);
+        }
     }
 
-    weakSelf(target);
-    dispatch_async(dispatch_get_main_queue(), ^{
-        weakReturn(target);
-        [self showAlertViewWithTitle:@"Capture Photos" withMessage:@"Capture finished"];
-    });
+    func executeRotateGimbal() {
+        guard let gimbal = self.fetchGimbal() else {return}
+        guard let camera = self.fetchCamera() else {return}
+        
+        //Reset Gimbal at the beginning
+        gimbal.reset { (error:Error?) in
+            if let error = error {
+                print("ResetGimbal Failed: \(error.localizedDescription)")
+            }
+        }
+        sleep(3)
+        
+        //rotate the gimbal clockwise
+        var yawAngle = 0.0
+        
+        for photoNumber in 0 ..< numberOfPhotosInPanorama {
+            print("SS Start Shoot Photo \(photoNumber)")
+            
+            camera.setShootPhotoMode(DJICameraShootPhotoMode.single) { (error:Error?) in
+                DispatchQueue.main.asyncAfter(deadline: DispatchTime.now()) {
+                    camera.startShootPhoto { (error:Error?) in
+                        if let error = error {
+                            print("SS ShootPhotoError: \(error.localizedDescription)")
+                        } else {
+                            print("SS Successfully Shot Photo")
+                        }
+                    }
+                }
+            }
+            sleep(2)
 
-}
+            yawAngle = yawAngle + rotationAngle
+            if yawAngle > 180.0 {
+                yawAngle = yawAngle - 360.0
+            }
+            
+            let yawRotation = NSNumber(value:yawAngle)
+            
+            let rotation = DJIGimbalRotation(pitchValue: 0,
+                                             rollValue: 0,
+                                             yawValue: yawRotation,
+                                             time: 1,
+                                             mode: DJIGimbalRotationMode.absoluteAngle,
+                                             ignore: false)
+            
+            gimbal.rotate(with: rotation) { (error:Error?) in
+                if let error = error {
+                    print("SS Rotation Error: \(error.localizedDescription)")
+                }
+            }
+            
+            sleep(2)
+        }
+
+        DispatchQueue.main.async { [weak self] () in
+            self?.showAlertWith(title: "Capture Photos", message: "Capture finished")
+        }
+    }
 ~~~
 
 In the code above, we implement the following features:
@@ -522,9 +512,7 @@ In the code above, we implement the following features:
 **3.** Rewrite the **onCaptureButtonClicked** method as shown below:
 
 ~~~swift
--(IBAction)onCaptureButtonClicked:(id)sender {
-   [self rotateGimbal];
-}
+    self.shootPanoRotateGimbal()
 ~~~
 
 Build and run the app, and try the capture button function of the app without taking off the Inspire 1. You should see the gimbal of Inspire 1 rotating 360 degrees and shoot photos smoothly.
@@ -538,19 +526,19 @@ It seems a bit inconvenient and odd to use `sleep(2)` between rotating the drone
 **1.** To use the DJIMutableWaypointMission, firstly we should implement the **DJIFlightControllerDelegate** protocol in the class extension of **CaptureViewController.m** as shown below:
 
 ~~~swift
-@interface CaptureViewController ()<DJICameraDelegate, DJIPlaybackDelegate, DJISDKManagerDelegate, DJIVideoFeedListener, DJIFlightControllerDelegate>{
-
+class CaptureViewController : UIViewController, DJICameraDelegate, DJIPlaybackDelegate, DJISDKManagerDelegate, DJIVideoFeedListener, DJIFlightControllerDelegate {
+    ...
 }
 ~~~
 
-Then declare the following properties for setting up DJIWaypointMission:
+Then declare the following properties for setting up a DJIWaypointMission:
 
 ~~~swift
-@property (strong, nonatomic) UIAlertView* uploadMissionProgressAlert;
-@property (atomic) CLLocationCoordinate2D aircraftLocation;
-@property (atomic) double aircraftAltitude;
-@property (atomic) DJIGPSSignalLevel gpsSignalLevel;
-@property (atomic) double aircraftYaw;
+    var uploadMissionProgressAlertController : UIAlertController?
+    var aircraftLocation : CLLocationCoordinate2D?
+    var aircraftAltitude = 0.0
+    var gpsSignalLevel = DJIGPSSignalLevel.levelNone
+    var aircraftYaw = 0.0
 ~~~
 
 Here we create an **uploadMissionProgressAlert** to show the upload mission progress message. The "aircraftLocation", "aircraftAltitude", "gpsSignalLevel" and "aircraftYaw" properties will be updated as the latest flight controller system status of the drone.
@@ -558,31 +546,25 @@ Here we create an **uploadMissionProgressAlert** to show the upload mission prog
 Moreover, initialize the **aircraftLocation** property in the ViewDidLoad method:
 
 ~~~swift
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-
-    self.title = @"Panorama Demo";
-    self.aircraftLocation = kCLLocationCoordinate2DInvalid;
-    [[DJIVideoPreviewer instance] setView:self.fpvPreviewView];
-    [self registerApp];
-
-}
-
+    override func viewDidLoad() {
+        self.title = "Panorama Demo"
+        self.aircraftLocation = kCLLocationCoordinate2DInvalid
+        super.viewDidLoad()
+        self.registerApp()
+    }
 ~~~
 
 **2.** The **DJIFlightControllerDelegate** method need to be implemented:
 
 ~~~swift
 
-#pragma mark - DJIFlightControllerDelegate Method
-- (void)flightController:(DJIFlightController *_Nonnull)fc didUpdateState:(DJIFlightControllerState *_Nonnull)state
-{
-    self.aircraftLocation = CLLocationCoordinate2DMake(state.aircraftLocation.coordinate.latitude, state.aircraftLocation.coordinate.longitude);
-    self.gpsSignalLevel = state.gpsSignalQualityLevel;
-    self.aircraftAltitude = state.altitude;
-    self.aircraftYaw = state.attitude.yaw;
-}
+    //MARK: - DJIFlightControllerDelegate Method
+    func flightController(_ fc: DJIFlightController, didUpdate state: DJIFlightControllerState) {
+        self.aircraftLocation = CLLocationCoordinate2DMake(state.aircraftLocation?.coordinate.latitude ?? 0, state.aircraftLocation?.coordinate.longitude ?? 0)
+        self.gpsSignalLevel = state.gpsSignalLevel
+        self.aircraftAltitude = state.altitude
+        self.aircraftYaw = state.attitude.yaw
+    }
 ~~~
 
 As the code shown above, we update the **aircraftLocation**, **gpsSignalLevel**, **aircraftAltitude** and **aircraftYaw** property values in the DJIFlightControllerDelegate method.
@@ -591,90 +573,81 @@ As the code shown above, we update the **aircraftLocation**, **gpsSignalLevel**,
 
 ~~~swift
 
-- (DJIWaypointMissionOperator *)missionOperator {
-    return [[DJISDKManager missionControl] waypointMissionOperator];
-}
-
-- (void) initializeMission {
-
-    DJIMutableWaypointMission *mission = [[DJIMutableWaypointMission alloc] init];
-    mission.maxFlightSpeed = 15.0;
-    mission.autoFlightSpeed = 4.0;
-
-    DJIWaypoint *wp1 = [[DJIWaypoint alloc] initWithCoordinate:self.aircraftLocation];
-    wp1.altitude = self.aircraftAltitude;
-
-    for (int i = 0; i < PHOTO_NUMBER ; i++) {
-
-        double rotateAngle = ROTATE_ANGLE*i;
-
-        if (rotateAngle > 180) { //Filter the angle between -180 ~ 0, 0 ~ 180
-            rotateAngle = rotateAngle - 360;
-        }
-
-        DJIWaypointAction *action1 = [[DJIWaypointAction alloc] initWithActionType:DJIWaypointActionTypeShootPhoto param:0];
-        DJIWaypointAction *action2 = [[DJIWaypointAction alloc] initWithActionType:DJIWaypointActionTypeRotateAircraft param:rotateAngle];
-        [wp1 addAction:action1];
-        [wp1 addAction:action2];
+    func missionOperator() -> DJIWaypointMissionOperator? {
+        return DJISDKManager.missionControl()?.waypointMissionOperator()
     }
 
-    DJIWaypoint *wp2 = [[DJIWaypoint alloc] initWithCoordinate:self.aircraftLocation];
-    wp2.altitude = self.aircraftAltitude + 1;
+    func initializeMission() {
+        let mission = DJIMutableWaypointMission()
+        mission.maxFlightSpeed = 15.0
+        mission.autoFlightSpeed = 4.0
+        
+        guard let aircraftLocation = self.aircraftLocation else { return }
+        let waypoint1 = DJIWaypoint(coordinate: aircraftLocation)
+        waypoint1.altitude = Float(self.aircraftAltitude)
 
-    [mission addWaypoint:wp1];
-    [mission addWaypoint:wp2];
-    [mission setFinishedAction:DJIWaypointMissionFinishedNoAction]; //Change the default action of Go Home to None
-
-    [[self missionOperator] loadMission:mission];
-
-    weakSelf(target);
-
-    [[self missionOperator] addListenerToUploadEvent:self withQueue:dispatch_get_main_queue() andBlock:^(DJIWaypointMissionUploadEvent * _Nonnull event) {
-
-        weakReturn(target);
-        if (event.currentState == DJIWaypointMissionStateUploading) {
-
-            NSString *message = [NSString stringWithFormat:@"Uploaded Waypoint Index: %ld, Total Waypoints: %ld" ,event.progress.uploadedWaypointIndex + 1, event.progress.totalWaypointCount];
-
-            if (target.uploadMissionProgressAlert == nil) {
-                target.uploadMissionProgressAlert = [[UIAlertView alloc] initWithTitle:nil message:message delegate:nil cancelButtonTitle:nil otherButtonTitles:nil];
-                [target.uploadMissionProgressAlert show];
+        for photoNumber in 0..<numberOfPhotosInPanorama {
+            var rotateAngle = Int16(photoNumber) * Int16(rotationAngle)
+            if rotateAngle > 180 {
+                rotateAngle = rotateAngle - 360
             }
-            else {
-                [target.uploadMissionProgressAlert setMessage:message];
+            
+            let shootPhotoAction = DJIWaypointAction(actionType: DJIWaypointActionType.shootPhoto, param: 0)
+            let rotateAction = DJIWaypointAction(actionType: DJIWaypointActionType.rotateAircraft, param: rotateAngle)
+            waypoint1.add(shootPhotoAction)
+            waypoint1.add(rotateAction)
+            
+        }
+        
+        let waypoint2 = DJIWaypoint(coordinate: aircraftLocation)
+        waypoint2.altitude = Float(self.aircraftAltitude + 1.0)
+        mission.add(waypoint1)
+        mission.add(waypoint2)
+        
+        //Change the default action of Go Home to None
+        mission.finishedAction = DJIWaypointMissionFinishedAction.noAction
+
+        self.missionOperator()?.load(mission)
+        
+        self.missionOperator()?.addListener(toUploadEvent: self, with: DispatchQueue.main, andBlock: { [weak self] (event:DJIWaypointMissionUploadEvent) in
+            if event.currentState == DJIWaypointMissionState.uploading {
+                guard let progress = event.progress else { return }
+                let message = "Uploaded Waypoint Index: \(progress.uploadedWaypointIndex + 1), Total Waypoints: \(progress.totalWaypointCount)"
+                
+                if let _ = self?.uploadMissionProgressAlertController {
+                    self?.uploadMissionProgressAlertController?.message = message
+                } else {
+                    let uploadMissionProgressAC = UIAlertController(title: nil, message: message, preferredStyle: UIAlertController.Style.alert)
+                    self?.uploadMissionProgressAlertController = uploadMissionProgressAC
+                    self?.present(uploadMissionProgressAC, animated: true, completion: nil)
+                }
+            } else if event.currentState == DJIWaypointMissionState.readyToExecute {
+                self?.uploadMissionProgressAlertController?.dismiss(animated: true, completion: nil)
+                self?.uploadMissionProgressAlertController = nil
+                
+                let finishedAlertController = UIAlertController(title: "Upload Mission Finished",
+                                                                message: nil,
+                                                                preferredStyle: UIAlertController.Style.alert)
+                let startMissionAction = UIAlertAction(title: "Start Mission", style: UIAlertAction.Style.default) { [weak self] (_) in
+                    self?.startWaypointMission()
+                }
+                
+                let cancelAction = UIAlertAction(title: "Cancel", style: UIAlertAction.Style.default, handler: nil)
+                finishedAlertController.addAction(startMissionAction)
+                finishedAlertController.addAction(cancelAction)
+                self?.present(finishedAlertController, animated: true, completion: nil)
             }
+        })
+        
+        self.missionOperator()?.addListener(toFinished: self, with: DispatchQueue.main, andBlock: { [weak self] (error:Error?) in
+            if let error = error {
+                self?.showAlertWith(title: "Mission Execution Failed", message: error.localizedDescription)
+            } else {
+                self?.showAlertWith(title: "Mission Execution Finished", message: "")
 
-        }else if (event.currentState == DJIWaypointMissionStateReadyToExecute){
-
-            [target.uploadMissionProgressAlert dismissWithClickedButtonIndex:0 animated:YES];
-            target.uploadMissionProgressAlert = nil;
-
-            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Upload Mission Finished" message:nil preferredStyle:UIAlertControllerStyleAlert];
-            UIAlertAction *startMissionAction = [UIAlertAction actionWithTitle:@"Start Mission" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-                [target startWaypointMission];
-            }];
-            UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleDefault handler:nil];
-            [alert addAction:cancelAction];
-            [alert addAction:startMissionAction];
-            [target presentViewController:alert animated:YES completion:nil];
-
-        }
-
-    }];
-
-    [[self missionOperator] addListenerToFinished:self withQueue:dispatch_get_main_queue() andBlock:^(NSError * _Nullable error) {
-
-        weakReturn(target);
-
-        if (error) {
-            [target showAlertViewWithTitle:@"Mission Execution Failed" withMessage:[NSString stringWithFormat:@"%@", error.description]];
-        }
-        else {
-            [target showAlertViewWithTitle:@"Mission Execution Finished" withMessage:nil];
-        }
-    }];
-
-}
+            }
+        })
+    }
 ~~~
 
 In the code above, we create a DJIMutableWaypointMission object firstly and set its **maxFlightSpeed** and **autoFlightSpeed** properties. Then we use a for loop to create 16 **DJIWaypointAction** objects. Each step in the for loop, we create two **DJIWaypointActions**. Set the first waypoint action type as **DJIWaypointActionTypeShootPhoto**, the other waypoint action type as **DJIWaypointActionTypeRotateAircraft** with the appropriate rotate angles. Then add these two waypoint actions to the first DJIWaypoint.
@@ -690,53 +663,38 @@ Lastly, invoke the `addListenerToUploadEvent:withQueue:andBlock:` and `addListen
 **4.** Once it's finished, let's create two new methods called `- (void)uploadWaypointMission` and `- (void)startWaypointMission` to upload waypoint mission to the drone and start the mission. Here is the code:
 
 ~~~swift
-- (void)uploadWaypointMission {
-
-    [self initializeMission];
-
-    weakSelf(target);
-
-    [[self missionOperator] uploadMissionWithCompletion:^(NSError * _Nullable error) {
-
-        weakReturn(target);
-
-        if (error) {
-            NSLog(@"%@", [NSString stringWithFormat:@"Upload Mission Failed: %@", [NSString stringWithFormat:@"%@", error.description]]);
-        }else
-        {
-            NSLog(@"Upload Mission Finished");
-        }
-    }];
-}
-
-- (void)startWaypointMission
-{
-    weakSelf(target);
-    //Start Mission
-    [[self missionOperator] startMissionWithCompletion:^(NSError * _Nullable error) {
-
-        weakReturn(target);
-
-        if (error) {
-            [target showAlertViewWithTitle:@"Start Mission Failed" withMessage:[NSString stringWithFormat:@"%@", error.description]];
-        }
-        else {
-            [target showAlertViewWithTitle:@"Start Mission Success" withMessage:nil];
-        }
-
-    }];
-}
+    func uploadWaypointMission() {
+        self.initializeMission()
+        
+        self.missionOperator()?.uploadMission(completion: { (error:Error?) in
+            if let error = error {
+                print("Upload Mission Failed: \(error.localizedDescription)")
+            } else {
+                print("Upload Mission Finished")
+            }
+        })
+    }
+    
+    func startWaypointMission() {
+        self.missionOperator()?.startMission(completion: { (error:Error?) in
+            if let error = error {
+                self.showAlertWith(title: "Start Mission Failed", message: error.localizedDescription)
+            } else {
+                self.showAlertWith(title: "Start Mission Success", message: "")
+            }
+        })
+    }
 ~~~
 
 In the `uploadWaypointMission` method, we firstly call the `initializeMission` method to initialize the DJIMutableWaypointMission. Then we invoke DJIWaypointMissionOperator's following method to upload waypoint mission task to the drone:
 
-~~~swift
+~~~objc
 - (void)uploadMissionWithCompletion:(DJICompletionBlock)completion;
 ~~~
 
 In the `startWaypointMission` method, we call the following method of DJIWaypointMissionOperator to start the waypoint mission:
 
-~~~swift
+~~~objc
 - (void)startMissionWithCompletion:(DJICompletionBlock)completion;
 ~~~
 
@@ -745,22 +703,22 @@ In the completion block, we notify users the start mission result by showing an 
 **5.** Since the DJIWaypointMission relies on good GPS signal quality, you should check the GPS signal status before executing the waypoint mission. At the same time, you should also check whether the **aircraftLocation** is valid. Let's implement the  **rotateDroneWithWaypointMission** method as shown below:
 
 ~~~swift
-- (void)rotateDroneWithWaypointMission {
-    if (CLLocationCoordinate2DIsValid(self.aircraftLocation) && self.gpsSignalLevel != DJIGPSSignalLevel0 && self.gpsSignalLevel != DJIGPSSignalLevel1) {
-        [self uploadWaypointMission];
+    func shootPanoWaypointMission() {
+        guard let aircraftLocation = self.aircraftLocation else { return }
+        if (CLLocationCoordinate2DIsValid(aircraftLocation)) && (self.gpsSignalLevel != DJIGPSSignalLevel.level0) && (self.gpsSignalLevel != DJIGPSSignalLevel.level1) {
+            self.uploadWaypointMission()
+        } else {
+            self.showAlertWith(title: "GPS signal weak", message: "Rotate drone failed")
+        }
     }
-    else {
-        [self showAlertViewWithTitle:@"GPS signal weak" withMessage:@"Rotate drone failed"];
-    }
-}
 ~~~
 
 **6.** Lastly, replace the **onCaptureButtonClicked** method with the followings:
 
 ~~~swift
--(IBAction)onCaptureButtonClicked:(id)sender {
-    [self rotateDroneWithWaypointMission];
-}
+    @IBAction func onCaptureButtonClicked(_ sender: Any) {
+        self.shootPanoWaypointMission()
+    }
 ~~~
 
 Build and run your code, take off the drone and fly to an appropriate altitude and press the capture button to execute the waypoint mission. You should see the drone start to rotate and shoot photos automatically.
@@ -770,36 +728,28 @@ So far we have three methods to rotate the drone and shoot photos, we had better
 Let's update the **onCaptureButtonClicked** method as shown below:
 
 ~~~swift
--(IBAction)onCaptureButtonClicked:(id)sender {
-
-    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"Select Mode" message:@"" delegate:self cancelButtonTitle:@"Cancel" otherButtonTitles:@"Rotate Aircraft", @"Rotate Gimbal", @"WaypointMission", nil];
-    alertView.tag = kCaptureModeAlertTag;
-    [alertView show];
-}
-~~~
-
-Here we use **kCaptureModeAlertTag** to distinguish the three types of alert views:
-
-~~~swift
-#define kCaptureModeAlertTag 100
-~~~
-
-Implement the **UIAlertView** delegate method:
-
-~~~swift
-#pragma mark UIAlertView Delegate Methods
-- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
-{
-    if (alertView.tag == kCaptureModeAlertTag) {
-        if(buttonIndex == 1){
-            [self rotateDroneWithJoystick];
-        }else if(buttonIndex == 2){
-            [self rotateGimbal];
-        }else if (buttonIndex == 3){
-            [self rotateDroneWithWaypointMission];
+    @IBAction func onCaptureButtonClicked(_ sender: Any) {
+        let alertController = UIAlertController(title: "Select Mode", message: "", preferredStyle: UIAlertController.Style.alert)
+        let rotateAircraftAction = UIAlertAction(title: "Rotate Aircraft", style: UIAlertAction.Style.default) { [weak self] (action:UIAlertAction) in
+            self?.shootPanoRotateAircraft()
         }
+        let rotateGimbalAction = UIAlertAction(title: "Rotate Gimbal", style: UIAlertAction.Style.default) { [weak self] (action:UIAlertAction) in
+            self?.shootPanoRotateGimbal()
+        }
+        let waypointMissionAction = UIAlertAction(title: "Waypoint Mission", style: UIAlertAction.Style.default) { [weak self] (action:UIAlertAction) in
+            self?.shootPanoWaypointMission()
+        }
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { (action:UIAlertAction) in
+            alertController.dismiss(animated: true, completion: nil)
+        }
+        
+        alertController.addAction(rotateAircraftAction)
+        alertController.addAction(rotateGimbalAction)
+        alertController.addAction(waypointMissionAction)
+        alertController.addAction(cancelAction)
+        
+        self.present(alertController, animated: true, completion: nil)
     }
-}
 ~~~
 
 Now the user can choose their preferred methods to take 360 degrees Panorama photos.
@@ -819,35 +769,30 @@ In order to download multiple photos, you should go through a series of playback
 **2.** Add a new variable **selectedPhotoNumber** to record the number of photos selected in the class extension of "CaptureViewController.m" file:
 
 ~~~swift
-   @property (nonatomic, assign) __block int selectedPhotoNumber;
+    var numberSelectedPhotos = 0
 ~~~
 
 Now, let's implement the **DJIPlaybackDelegate** method as shown below to update the selected photo num:
 
 ~~~swift
-- (void)playbackManager:(DJIPlaybackManager *)playbackManager didUpdatePlaybackState:(DJICameraPlaybackState *)playbackState
-{
-    self.selectedPhotoNumber = playbackState.numberOfSelectedFiles;
-}
+    func playbackManager(_ playbackManager: DJIPlaybackManager, didUpdate playbackState: DJICameraPlaybackState) {
+        self.numberSelectedPhotos = Int(playbackState.selectedFileCount)
+    }
 ~~~
 
 **3.** Implement the **onDownloadButtonClicked** method as shown below:  
 
 ~~~swift
--(IBAction)onDownloadButtonClicked:(id)sender {
-
-    weakSelf(target);
-    DJICamera *camera = [self fetchCamera];
-    [camera setMode:DJICameraModePlayback withCompletion:^(NSError * _Nullable error) {
-        weakReturn(target);
-
-        if (error) {
-            NSLog(@"Enter playback mode failed: %@", error.description);
-        }else {
-            [target selectPhotosForPlaybackMode];
+    @IBAction func onDownloadButtonClicked(_ sender: Any) {
+        guard let camera = self.fetchCamera() else { return }
+        camera.setMode(DJICameraMode.playback) { [weak self] (error:Error?) in
+            if let error = error {
+                print("Enter playback mode failed: \(error.localizedDescription)")
+            } else {
+                self?.selectPhotosForPlaybackMode()
+            }
         }
-    }];
-}
+    } 
 ~~~
 
 Here we invoke the `setMode:withCompletion:` method to set the camera mode to `DJICameraModePlayback` . If it succeeded, we can invoke the `selectPhotosForPlaybackMode` method to select photos.
@@ -855,37 +800,34 @@ Here we invoke the `setMode:withCompletion:` method to set the camera mode to `D
 **4**. Once it's done, let's implement the `selectPhotosForPlaybackMode` method to select the latest photos you have captured for the panorama:
 
 ~~~swift
--(void)selectPhotosForPlaybackMode {
-
-    weakSelf(target);
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-
-        weakReturn(target);
-        DJICamera *camera = [target fetchCamera];
-        [camera.playbackManager enterMultiplePreviewMode];
-        sleep(1);
-        [camera.playbackManager enterMultipleEditMode];
-        sleep(1);
-
-        while (target.selectedPhotoNumber != PHOTO_NUMBER) {
-            [camera.playbackManager selectAllFilesInPage];
-            sleep(1);
-
-            if(target.selectedPhotoNumber > PHOTO_NUMBER){
-                for(int unselectFileIndex = 0; target.selectedPhotoNumber != PHOTO_NUMBER; unselectFileIndex++){
-                    [camera.playbackManager toggleFileSelectionAtIndex:unselectFileIndex];
-                    sleep(1);
+    //MARK: - Select the lastest photos for Panorama
+    func selectPhotosForPlaybackMode() {
+        DispatchQueue.global(qos: DispatchQoS.QoSClass.default).async { [weak self] in
+            let camera = self?.fetchCamera()
+            camera?.playbackManager?.enterMultiplePreviewMode()
+            sleep(1)
+            camera?.playbackManager?.enterMultipleEditMode()
+            sleep(1)
+            
+            guard let self = self else { return }
+            while self.numberSelectedPhotos != numberOfPhotosInPanorama {
+                camera?.playbackManager?.selectAllFilesInPage()
+                sleep(1)
+                
+                if self.numberSelectedPhotos > numberOfPhotosInPanorama {
+                    for unselectFileIndex in 0 ..< numberOfPhotosInPanorama {
+                        camera?.playbackManager?.toggleFileSelection(at: Int32(unselectFileIndex))
+                        sleep(1)
+                    }
+                    break
+                } else if self.numberSelectedPhotos < numberOfPhotosInPanorama {
+                    camera?.playbackManager?.goToPreviousMultiplePreviewPage()
+                    sleep(1)
                 }
-                break;
-            }
-            else if(target.selectedPhotoNumber < PHOTO_NUMBER) {
-                [camera.playbackManager goToPreviousMultiplePreviewPage];
-                sleep(1);
-            }
+             }
+            self.downloadPhotosForPlaybackMode()
         }
-        [target downloadPhotosForPlaybackMode];
-    });
-}
+    }
 ~~~
 
 It takes a few seconds for the drone to respond to commands, so you should dispatch an asynchronous thread to send commands and call the `sleep()` between them in case you freeze the UI interaction of in main thread. As shown in the flow diagram above, you should enter **MultiplePreviewMode** and **MultipleEditMode** before selecting photos. But how do we select the lastest 8 photos for panorama? Here is our strategy:
@@ -901,87 +843,84 @@ The default selected photo is the last photo. Select all photos in the last page
 Create and implement the `downloadPhotosForPlaybackMode` method as shown below:
 
 ~~~swift
--(void)downloadPhotosForPlaybackMode {
-    __block int finishedFileCount = 0;
-    __block NSMutableData* downloadedFileData;
-    __block long totalFileSize;
-    __block NSString* targetFileName;
+    //MARK: - Download the selected photos
+    func downloadPhotosForPlaybackMode() {
+        var finishedFileCount = 0
+        var downloadedFileData = Data()
+        var totalFileSize = 0
+        var targetFileName : String?
 
-    self.imageArray=[NSMutableArray new];
+        self.imageArray = [UIImage]()
 
-    DJICamera *camera = [self fetchCamera];
-    if (camera == nil) return;
+        guard let camera = self.fetchCamera() else {return}
 
-    weakSelf(target);
-    [camera.playbackManager downloadSelectedFilesWithPreparation:^(NSString * _Nullable fileName, DJIDownloadFileType fileType, NSUInteger fileSize, BOOL * _Nonnull skip) {
-
-        totalFileSize=(long)fileSize;
-        downloadedFileData=[NSMutableData new];
-        targetFileName=fileName;
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            weakReturn(target);
-            [target showDownloadProgressAlert];
-            [target.downloadProgressAlert setTitle:[NSString stringWithFormat:@"Download (%d/%d)", finishedFileCount + 1, PHOTO_NUMBER]];
-            [target.downloadProgressAlert setMessage:[NSString stringWithFormat:@"FileName:%@ FileSize:%0.1fKB Downloaded:0.0KB", fileName, fileSize / 1024.0]];
-        });
-
-    } process:^(NSData * _Nullable data, NSError * _Nullable error) {
-
-        weakReturn(target);
-        [downloadedFileData appendData:data];
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [target.downloadProgressAlert setMessage:[NSString stringWithFormat:@"FileName:%@ FileSize:%0.1fKB Downloaded:%0.1fKB", targetFileName, totalFileSize / 1024.0, downloadedFileData.length / 1024.0]];
-        });
-
-    } fileCompletion:^{
-        weakReturn(target);
-        finishedFileCount++;
-
-        UIImage *downloadPhoto=[UIImage imageWithData:downloadedFileData];
-        [target.imageArray addObject:downloadPhoto];
-
-    } overallCompletion:^(NSError * _Nullable error) {
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [target.downloadProgressAlert dismissWithClickedButtonIndex:0 animated:YES];
-            target.downloadProgressAlert = nil;
-
-            if (error) {
-                UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:@"Download failed" message:[NSString stringWithFormat:@"%@", error.description] delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-                [alertView show];
-            }else
-            {
-                UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:[NSString stringWithFormat:@"Download (%d/%d)", finishedFileCount, PHOTO_NUMBER] message:@"download finished" delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-                [alertView show];
+        camera.playbackManager?.downloadSelectedFiles(preparation: { [weak self] (fileName:String?, fileType:DJIDownloadFileType, fileSize:UInt, skip:UnsafeMutablePointer<ObjCBool>) in
+            totalFileSize = Int(fileSize)
+            downloadedFileData = Data()
+            targetFileName = fileName
+            DispatchQueue.main.async { [weak self] () in
+                self?.showDownloadProgressAlert()
+                self?.downloadProgressAlert?.title = "Download (\(finishedFileCount + 1)/\(numberOfPhotosInPanorama)"
+                self?.downloadProgressAlert?.message = String(format:"FileName:%@ FileSize:%0.1KB Downloaded:0.0KB", fileName ?? "", Float(fileSize) / 1024.0)
             }
-
-            DJICamera *camera = [target fetchCamera];
-            [camera setMode:DJICameraModeShootPhoto withCompletion:^(NSError * _Nullable error) {
-                if (error) {
-                    UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:@"Set CameraMode to ShootPhoto Failed" message:[NSString stringWithFormat:@"%@", error.description] delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-                    [alertView show];
-
+        }, process: { (data:Data?, error:Error?) in
+            if let data = data {
+                downloadedFileData.append(data)
+            }
+            DispatchQueue.main.async {
+                let fileName = targetFileName ?? ""
+                let fileSize = Float(totalFileSize) / 1024.0
+                let downloadedSize = Float(downloadedFileData.count) / 1024.0
+                self.downloadProgressAlert?.message = String(format:"FileName:%@ FileSize:%0.1fKB Downloaded:%0.1fKB", fileName, fileSize, downloadedSize)
+            }
+        }, fileCompletion: { [weak self] in
+            finishedFileCount = finishedFileCount + 1
+            if let downloadPhoto = UIImage(data: downloadedFileData) {
+                self?.imageArray?.append(downloadPhoto)
+            }
+        }, overallCompletion: { (error:Error?) in
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.downloadProgressAlert?.dismiss(animated: true, completion: nil)
+                self.downloadProgressAlert = nil
+                if let error = error {
+                    let downloadFailController = UIAlertController(title: "Download failed",
+                                                                  message: error.localizedDescription,
+                                                                  preferredStyle: UIAlertController.Style.alert)
+                    self.present(downloadFailController, animated: true, completion: nil)
+                } else {
+                    let downloadFinishController = UIAlertController(title: "Download (\(finishedFileCount)/\(numberOfPhotosInPanorama)",
+                                                                     message: "download finished",
+                                                                     preferredStyle: UIAlertController.Style.alert)
+                    self.present(downloadFinishController, animated: true, completion: nil)
                 }
-            }];
-
-        });
-
-    }];
-}
-
--(void) showDownloadProgressAlert {
-    if (self.downloadProgressAlert == nil) {
-        self.downloadProgressAlert = [[UIAlertView alloc] initWithTitle:@"" message:@"" delegate:nil cancelButtonTitle:nil otherButtonTitles:nil];
-        [self.downloadProgressAlert show];
+                
+                let camera = self.fetchCamera()
+                camera?.setMode(DJICameraMode.shootPhoto, withCompletion: { (error:Error?) in
+                    if let error = error {
+                        let cameraModeFailController = UIAlertController(title: "Set CameraMode to ShootPhoto Failed",
+                                                                      message: error.localizedDescription,
+                                                                      preferredStyle: UIAlertController.Style.alert)
+                        self.present(cameraModeFailController, animated: true, completion: nil)
+                    }
+                })
+            }
+            
+        })
     }
-}
+
+    func showDownloadProgressAlert() {
+        if self.downloadProgressAlert == nil {
+            let downloadProgressAC = UIAlertController(title: "", message: "", preferredStyle: UIAlertController.Style.alert)
+            self.downloadProgressAlert = downloadProgressAC
+            self.present(downloadProgressAC, animated: true, completion: nil)
+        }
+    }
 ~~~
 
 In the code above, we firstly add several variables and init the **imageArray** object. Then call the DJIPlaybackManager's following method to download the selected photos:
 
-~~~swift
+~~~objc
 - (void)downloadSelectedFilesWithPreparation:(DJIFileDownloadPreparingBlock)prepareBlock process:(DJIFileDownloadingBlock)dataBlock fileCompletion:(DJIFileDownloadCompletionBlock)fileCompletionBlock overallCompletion:(DJICompletionBlock)overallCompletionBlock;
 ~~~
 
@@ -1006,32 +945,26 @@ Firstly, enter **Media Download** mode, then refresh the media file list from th
 Now, let's improve the `onDownloadButtonClicked:` method as shown below:
 
 ~~~swift
--(IBAction)onDownloadButtonClicked:(id)sender {
-
-    weakSelf(target);
-    DJICamera *camera = [self fetchCamera];
-    if (camera.isPlaybackSupported) {
-        [camera setMode:DJICameraModePlayback withCompletion:^(NSError * _Nullable error) {
-            weakReturn(target);
-
-            if (error) {
-                NSLog(@"Enter playback mode failed: %@", error.description);
-            }else {
-                [target selectPhotosForPlaybackMode];
+    @IBAction func onDownloadButtonClicked(_ sender: Any) {
+        guard let camera = self.fetchCamera() else { return }
+        if camera.isPlaybackSupported() {
+            camera.setMode(DJICameraMode.playback) { [weak self] (error:Error?) in
+                if let error = error {
+                    print("Enter playback mode failed: \(error.localizedDescription)")
+                } else {
+                    self?.selectPhotosForPlaybackMode()
+                }
             }
-        }];
-    }
-    else if (camera.isMediaDownloadModeSupported) {
-        [camera setMode:DJICameraModeMediaDownload withCompletion:^(NSError * _Nullable error) {
-            weakReturn(target);
-            if (error) {
-                NSLog(@"Enter Media Download mode failed: %@", error.description);
-            } else {
-                [target loadMediaListsForMediaDownloadMode];
+        } else if camera.isMediaDownloadModeSupported() {
+            camera.setMode(DJICameraMode.mediaDownload) { [weak self] (error:Error?) in
+                if let error = error {
+                    print("Enter Media Download mode failed: \(error.localizedDescription)")
+                } else {
+                    self?.loadMediaListsForMediaDownloadMode()
+                }
             }
-        }];
+        }
     }
-}
 ~~~
 
 Here we firstly check if the DJICamera support media download mode, and invoke the `setMode:withCompletion:` method to set the camera mode to `DJICameraModeMediaDownload`. If it succeeded, we can invoke the `loadMediaListsForMediaDownloadMode` method to select photos.
@@ -1039,25 +972,22 @@ Here we firstly check if the DJICamera support media download mode, and invoke t
 Next, let's implement the `loadMediaListsForMediaDownloadMode` method as shown below:
 
 ~~~swift
--(void)loadMediaListsForMediaDownloadMode {
-    DJICamera *camera = [self fetchCamera];
-    [self showDownloadProgressAlert];
-    [self.downloadProgressAlert setTitle:[NSString stringWithFormat:@"Refreshing file list. "]];
-    [self.downloadProgressAlert setMessage:[NSString stringWithFormat:@"Loading..."]];
-
-    weakSelf(target);
-    [camera.mediaManager refreshFileListOfStorageLocation:DJICameraStorageLocationSDCard withCompletion:^(NSError * _Nullable error) {
-        weakReturn(target);
-        if (error) {
-            [target.downloadProgressAlert dismissWithClickedButtonIndex:0 animated:YES];
-            target.downloadProgressAlert = nil;
-            NSLog(@"Refresh file list failed: %@", error.description);
-        }
-        else {
-            [target downloadPhotosForMediaDownloadMode];
-        }
-    }];
-}
+    func loadMediaListsForMediaDownloadMode() {
+        self.showDownloadProgressAlert()
+        self.downloadProgressAlert?.title = "Refreshing file list. "
+        self.downloadProgressAlert?.message = "Loading..."
+        
+        let camera = self.fetchCamera()
+        camera?.mediaManager?.refreshFileList(of: DJICameraStorageLocation.sdCard, withCompletion: { [weak self] (error:Error?) in
+            if let error = error {
+                self?.downloadProgressAlert?.dismiss(animated: true, completion: nil)
+                self?.downloadProgressAlert = nil
+                print("Refresh file list failed: \(error.localizedDescription)")
+            } else {
+                self?.downloadPhotosForMediaDownloadMode()
+            }
+        })
+    }
 ~~~
 
 In the code above, we invoke the `refreshFileListOfStorageLocation:` method of `DJIMediaManager` to refresh the file list from the SD card. If there is no error, invoke the `downloadPhotosForMediaDownloadMode` method to download photos.
@@ -1065,68 +995,84 @@ In the code above, we invoke the `refreshFileListOfStorageLocation:` method of `
 Once you finish the steps above, let's implement the `downloadPhotosForMediaDownloadMode` method as shown below to download photos:
 
 ~~~swift
--(void)downloadPhotosForMediaDownloadMode {
-    __block int finishedFileCount = 0;
+    func downloadPhotosForMediaDownloadMode() {
+        var finishedFileCount = 0
 
-    self.imageArray=[NSMutableArray new];
+        self.imageArray = [UIImage]()
 
-    DJICamera *camera = [self fetchCamera];
-    NSArray<DJIMediaFile *> *files = [camera.mediaManager sdCardFileListSnapshot];
-    if (files.count < PHOTO_NUMBER) {
-        [self.downloadProgressAlert dismissWithClickedButtonIndex:0 animated:YES];
-        self.downloadProgressAlert = nil;
-        UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:@"Download failed" message:[NSString stringWithFormat:@"Not enough photos are taken. "] delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-        [alertView show];
-        return;
-    }
-
-    [camera.mediaManager.taskScheduler resumeWithCompletion:^(NSError * _Nullable error) {
-        if (error) {
-            [self.downloadProgressAlert dismissWithClickedButtonIndex:0 animated:YES];
-            self.downloadProgressAlert = nil;
-            UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:@"Download failed" message:[NSString stringWithFormat:@"Resume file task scheduler failed. "] delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-            [alertView show];
+        guard let camera = self.fetchCamera() else { return }
+        guard let files = camera.mediaManager?.sdCardFileListSnapshot() else { return }
+        if files.count < numberOfPhotosInPanorama {
+            self.downloadProgressAlert?.dismiss(animated: true, completion: nil)
+            self.downloadProgressAlert = nil
+            let downloadFailedController = UIAlertController(title: "Download Failed", message: "Not enough photos are taken. ", preferredStyle: UIAlertController.Style.alert)
+            self.present(downloadFailedController, animated: true, completion: nil)
+            return
         }
-    }];
 
-    [self.downloadProgressAlert setTitle:[NSString stringWithFormat:@"Downloading..."]];
-    [self.downloadProgressAlert setMessage:[NSString stringWithFormat:@"Download (%d/%d)", 0, PHOTO_NUMBER]];
-
-    weakSelf(target);
-    for (int i = (int)files.count - PHOTO_NUMBER; i < files.count; i++) {
-        DJIMediaFile *file = files[i];
-
-        DJIFetchMediaTask *task = [DJIFetchMediaTask taskWithFile:file content:DJIFetchMediaTaskContentPreview andCompletion:^(DJIMediaFile * _Nonnull file, DJIFetchMediaTaskContent content, NSError * _Nullable error) {
-            weakReturn(target);
-            if (error) {
-                [target.downloadProgressAlert dismissWithClickedButtonIndex:0 animated:YES];
-                target.downloadProgressAlert = nil;
-                UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:@"Download failed" message:[NSString stringWithFormat:@"Download file %@ failed. ", file.fileName] delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-                [alertView show];
+        camera.mediaManager?.taskScheduler.resume(completion: { [weak self] (error:Error?) in
+            if let error = error {
+                self?.downloadProgressAlert?.dismiss(animated: true, completion: nil)
+                self?.downloadProgressAlert = nil
+                let downloadFailedController = UIAlertController(title: "Download failed",
+                                                  message: "Resume file task scheduler failed. ",
+                                                  preferredStyle: UIAlertController.Style.alert)
+                self?.present(downloadFailedController, animated: true, completion: nil)
+                print("Download failed: Resume file task scheduler failed: \(error.localizedDescription)")
             }
-            else {
-                [target.imageArray addObject:file.preview];
-                finishedFileCount++;
-                [target.downloadProgressAlert setMessage:[NSString stringWithFormat:@"Download (%d/%d)", finishedFileCount, PHOTO_NUMBER]];
+        })
+        
+        self.downloadProgressAlert?.title = "Downloading..."
+        self.downloadProgressAlert?.message = "Download (0/\(numberOfPhotosInPanorama))"
 
-                if (finishedFileCount == PHOTO_NUMBER) {
+        for i in (files.count - numberOfPhotosInPanorama) ..< files.count {
+            let file = files[i]
+            
+            let task = DJIFetchMediaTask.init(file: file, content: DJIFetchMediaTaskContent.preview) { [weak self] (file:DJIMediaFile, content:DJIFetchMediaTaskContent, error:Error?) in
+                guard let self = self else { return }
+                if let error = error {
+                    self.downloadProgressAlert?.dismiss(animated: true, completion: nil)
+                    self.downloadProgressAlert = nil
+                    let downloadFailController = UIAlertController(title: "Download failed",
+                                                                   message: "Download file \(file.fileName) failed. ",
+                                                                   preferredStyle: .alert)
+                    self.present(downloadFailController, animated: true, completion: nil)
+                    print("Download file \(file.fileName) failed: \(error.localizedDescription)")
+                } else {
+                    if let image = file.preview {
+                        self.imageArray?.append(image)
+                    }
 
-                    [target.downloadProgressAlert dismissWithClickedButtonIndex:0 animated:YES];
-                    target.downloadProgressAlert = nil;
-                    UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:@"Download Complete" message:[NSString stringWithFormat:@"%d files have been downloaded. ", PHOTO_NUMBER] delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-                    [alertView show];
-                    [camera setMode:DJICameraModeShootPhoto withCompletion:^(NSError * _Nullable error) {
-                        if (error) {
-                            UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:@"Set CameraMode to ShootPhoto Failed" message:[NSString stringWithFormat:@"%@", error.description] delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-                            [alertView show];
+                    finishedFileCount = finishedFileCount + 1
+                    self.downloadProgressAlert?.message = "Download (\(finishedFileCount)/\(numberOfPhotosInPanorama))"
+
+                    if finishedFileCount == numberOfPhotosInPanorama {
+                        self.downloadProgressAlert?.dismiss(animated: true, completion: nil)
+                        self.downloadProgressAlert = nil
+                        let downloadCompleteController = UIAlertController(title: "Download Complete",
+                                                                           message: "\(numberOfPhotosInPanorama) files have been downloaded. ",
+                                                                           preferredStyle: UIAlertController.Style.alert)
+                        let okAction = UIAlertAction(title: "OK", style: .cancel) { (action:UIAlertAction) in
+                            downloadCompleteController.dismiss(animated: true, completion: nil)
                         }
-                    }];
+                        downloadCompleteController.addAction(okAction)
+                        self.present(downloadCompleteController, animated: true, completion: nil)
+                        
+                        camera.setMode(DJICameraMode.shootPhoto) { (error:Error?) in
+                            if let error = error {
+                                let setCameraModeFailController = UIAlertController(title: "Set CameraMode to ShootPhoto Failed",
+                                                                                   message: error.localizedDescription,
+                                                                                   preferredStyle: UIAlertController.Style.alert)
+                                self.present(setCameraModeFailController, animated: true, completion: nil)
+                            }
+                        }
+                    }
                 }
             }
-        }];
-        [camera.mediaManager.taskScheduler moveTaskToEnd:task];
+            camera.mediaManager?.taskScheduler.moveTask(toEnd: task)
+        }
     }
-}
+
 ~~~
 
 In the code above, we implement the following features:
@@ -1158,18 +1104,20 @@ Then create a new view controller called **StitchingViewController** and add it 
 **2.** Let's add an instance variable **imageArray** in the **StitchingViewController.h**:
 
 ~~~swift
-@property (strong,nonatomic) NSMutableArray * imageArray;
+    @objc var imageArray : NSMutableArray?
 ~~~
 
 Then add the **prepareForSegue** method to pass the downloaded photos to the next view controller in **CaptureViewController.m**:
 
 ~~~swift
-//Pass the downloaded photos to StitchingViewController
--(void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender {
-    if([segue.identifier isEqualToString:@"Stitching"]) {
-        [segue.destinationViewController setValue:self.imageArray forKey:@"imageArray"];
+    //Pass the downloaded photos to StitchingViewController
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "Stitching" {
+            if let imageArray = self.imageArray {
+                segue.destination.setValue(NSMutableArray(array: imageArray), forKey: "imageArray")
+            }
+        }
     }
-}
 ~~~
 
 **3.** Add an activity indicator in the **StitchingViewController** in Main.storyboard, set its behavior to **Hides When Stopped**, then set its outlet as **activityIndicator** in the StitchingViewController.h file:
@@ -1190,7 +1138,7 @@ Then add the **prepareForSegue** method to pass the downloaded photos to the nex
 
 Open your PCH file and add the following lines of code:
 
-~~~swift
+~~~objc
 #ifdef __cplusplus
     #import <opencv2/opencv.hpp>
 #endif
@@ -1209,7 +1157,7 @@ Open your PCH file and add the following lines of code:
 
 Let's implement the **OpenCVConversion.h** file shown as below:
 
-~~~swift
+~~~objc
 @interface OpenCVConversion : NSObject
 
 + (cv::Mat)cvMatFromUIImage:(UIImage *)image;//convert UIImage to cv::Mat
@@ -1222,7 +1170,7 @@ Let's implement the **OpenCVConversion.h** file shown as below:
 
 Next, implement the **OpenCVConversion.mm** file:
 
-~~~swift
+~~~objc
 #import "OpenCVConversion.h"
 
 @implementation OpenCVConversion
@@ -1351,7 +1299,7 @@ bool stitch (const cv::vector <cv::Mat> & images, cv::Mat &result) {
 
 **3.** Now you can customize your stitching method in the new class called **Stitching**. Here is the class method declaration for stitching implemented in the **Stitching.h** file. Users can input an image array and a reference of cv::Mat, it will return the stitching result:
 
-~~~swift
+~~~objc
 #import <Foundation/Foundation.h>
 
 @interface Stitching : NSObject
@@ -1361,7 +1309,7 @@ bool stitch (const cv::vector <cv::Mat> & images, cv::Mat &result) {
 
 Here is the code for **Stitching.mm** file:
 
-~~~swift
+~~~objc
 #import "Stitching.h"
 #import "StitchingWrapper.h"
 #import "OpenCVConversion.h"
@@ -1436,53 +1384,48 @@ Then we convert the images to cv::Mat and push them into cv::vector. Finally, we
 ![Image View](../images/tutorials-and-samples/iOS/PanoramaDemo/imageView.png)
 
 Replace the **StitchingViewController.mm** with the following code:
-
+//TODO: modify to just perform stitching...
 ~~~swift
-#import "StitchingViewController.h"
-#import "Stitching.h"
-#import "OpenCVConversion.h"
+import Foundation
+import UIKit
 
-@implementation StitchingViewController
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-
-    __weak StitchingViewController *weakSelf = self;
-    __weak NSMutableArray *weakImageArray = self.imageArray;
-
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        cv::Mat stitchMat;
-        if(![Stitching stitchImageWithArray:weakImageArray andResult:stitchMat]) {
-            [weakSelf showAlertWithTitle:@"Stitching" andMessage:@"Stitching failed"];
-            return;
+class StitchingViewController : UIViewController {
+    @objc var imageArray : NSMutableArray?
+    
+    @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
+    @IBOutlet weak var imageView: UIImageView!
+    
+    override func viewDidLoad() {
+        DispatchQueue.global(qos: DispatchQoS.QoSClass.default).async { [weak self] in
+            guard let self = self else { return }
+            guard let imageArray = self.imageArray else { return }
+            guard let stitchedImage = Stitching.image(with: imageArray) else {
+                self.showAlertWith(title: "Processing", message: "Stitching and cropping failed")
+                return
+            }
+            UIImageWriteToSavedPhotosAlbum(stitchedImage, nil, nil, nil)
+            
+            DispatchQueue.main.async { [weak self] in
+                self?.imageView.image = stitchedImage
+            }
         }
-
-        cv::Mat cropedMat;
-        if(![Cropping cropWithMat:stitchMat andResult:cropedMat]){
-            [weakSelf showAlertWithTitle:@"Cropping" andMessage:@"cropping failed"];
-            return;
+        super.viewDidLoad()
+    }
+    
+    //show the alert view in main thread
+    func showAlertWith(title:String, message:String) {
+        DispatchQueue.main.async { [weak self] in
+            let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
+            let cancelAction = UIAlertAction(title: "OK", style: UIAlertAction.Style.cancel) { UIAlertAction in
+                alertController.dismiss(animated: true, completion: nil)
+            }
+            alertController.addAction(cancelAction)
+            self?.activityIndicator.stopAnimating()
         }
-
-        UIImage *stitchImage=[OpenCVConversion UIImageFromCVMat:cropedMat];
-        UIImageWriteToSavedPhotosAlbum(stitchImage, nil, nil, nil);
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-
-            [weakSelf showAlertWithTitle:@"Save Photo Success" andMessage:@"Panoroma photo is saved to Album, please check it!"];
-            _imageView.image=stitchImage;
-        });
-    });
-
+    }
 }
 
-//show the alert view in main thread
--(void) showAlertWithTitle:(NSString *)title andMessage:(NSString *)message {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:title message:message delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-        [alertView show];
-        [_activityIndicator stopAnimating];
-    });
-}
+
 ~~~
 
 Now download the latest photos and click the **Stitch** button. After a minute you should be able to see an amazing panorama photo!
@@ -1507,7 +1450,7 @@ Replace the code in **Cropping.h** file with the followings:
 
 Then implementation the `+ (bool) cropWithMat: (const cv::Mat &)src andResult:(cv::Mat *)dest` method in the **Cropping.mm** file like this:
 
-~~~swift
+~~~objc
 #import "Cropping.h"
 
 #define CUTBLACKTHREASHOLD 0.05
@@ -1595,51 +1538,82 @@ The `bool checkBlackRow(const cv::Mat& roi, int y)` function checks whether the 
 **2.** Rewrite the **Stitching.mm** file as shown below:
 
 ~~~swift
-#import "StitchingViewController.h"
 #import "Stitching.h"
-#import "OpenCVConversion.h"
 #import "Cropping.h"
+#import "StitchingWrapper.h"
+#import "OpenCVConversion.h"
+#import <UIKit/UIKit.h>
 
-@implementation StitchingViewController
+#define HIGHT_COMPRESS_RATIO 0.2
+#define LOW_COMPRESS_RATIO 1.0
 
-- (void)viewDidLoad {
-    [super viewDidLoad];
+@implementation Stitching
 
-    __weak StitchingViewController *weakSelf = self;
-    __weak NSMutableArray *weakImageArray = self.imageArray;
-
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        cv::Mat stitchMat;
-        if(![Stitching stitchImageWithArray:weakImageArray andResult:stitchMat]) {
-            [weakSelf showAlertWithTitle:@"Stitching" andMessage:@"Stitching failed"];
-            return;
++ (UIImage *)imageWithArray:(NSMutableArray *)imageArray {
+    cv::Mat stitchedImage;
+    cv::Mat croppedImage;
+    if ([self stitchImageWithArray:imageArray andResult:stitchedImage]) {
+        if ([Cropping cropWithMat:stitchedImage andResult:croppedImage]) {
+            return [OpenCVConversion UIImageFromCVMat:croppedImage];
+        } else {
+            NSLog(@"Failed to crop image");
         }
-
-        cv::Mat cropedMat;
-        if(![Cropping cropWithMat:stitchMat andResult:cropedMat]){
-            [weakSelf showAlertWithTitle:@"Cropping" andMessage:@"cropping failed"];
-            return;
-        }
-
-        UIImage *stitchImage=[OpenCVConversion UIImageFromCVMat:cropedMat];
-        UIImageWriteToSavedPhotosAlbum(stitchImage, nil, nil, nil);
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-
-            [weakSelf showAlertWithTitle:@"Save Photo Success" andMessage:@"Panoroma photo is saved to Album, please check it!"];
-            _imageView.image=stitchImage;
-        });
-    });
-
+    } else {
+        NSLog(@"Failed to stitch image");
+    }
+    return nil;
 }
 
-//show the alert view in main thread
--(void) showAlertWithTitle:(NSString *)title andMessage:(NSString *)message {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIAlertView* alertView = [[UIAlertView alloc] initWithTitle:title message:message delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
-        [alertView show];
-        [_activityIndicator stopAnimating];
-    });
++ (bool) stitchImageWithArray:(NSMutableArray*)imageArray andResult:(cv::Mat &) result {
+    if (imageArray == nil || imageArray.count == 0) {
+        return false;
+    }
+
+    float ratio = HIGHT_COMPRESS_RATIO;
+    UIImage *image = [imageArray firstObject];
+    if (image.size.height < 1000) {
+        ratio = LOW_COMPRESS_RATIO;
+    }
+
+    NSMutableArray* compressedImageArray =[NSMutableArray new];
+    for(UIImage *rawImage in imageArray){
+        UIImage *compressedImage=[self compressedToRatio:rawImage ratio:ratio];
+        [compressedImageArray addObject:compressedImage];
+    }
+    [imageArray removeAllObjects];
+    
+    
+    if ([compressedImageArray count]==0) {
+        NSLog (@"imageArray is empty");
+        return false;
+    }
+    cv::vector<cv::Mat> matArray;
+    
+    for (id image in compressedImageArray) {
+        if ([image isKindOfClass: [UIImage class]]) {
+            cv::Mat matImage = [OpenCVConversion cvMat3FromUIImage:image];
+            matArray.push_back(matImage);
+        }
+    }
+    NSLog(@"Stitching...");
+    if(!stitch(matArray, result)){
+        return false;
+    }
+    
+    return true;
+}
+
+
+//compress the photo width and height to COMPRESS_RATIO
++ (UIImage *)compressedToRatio:(UIImage *)img ratio:(float)ratio {
+    CGSize compressedSize;
+    compressedSize.width=img.size.width*ratio;
+    compressedSize.height=img.size.height*ratio;
+    UIGraphicsBeginImageContext(compressedSize);
+    [img drawInRect:CGRectMake(0, 0, compressedSize.width, compressedSize.height)];
+    UIImage* compressedImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return compressedImage;
 }
 
 @end
