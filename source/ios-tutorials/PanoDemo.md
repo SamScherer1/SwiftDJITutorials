@@ -6,9 +6,7 @@ github: https://github.com/SamScherer1/SimulatorDemo-Swift
 keywords: [iOS Panorama demo, OpenCV, panorama application]
 ---
 
-<!-- toc -->
-
-*If you come across any mistakes or bugs in this tutorial, please let us know by sending emails to dev@dji.com. Please feel free to send us Github pull request and help us fix any issues.*
+*If you come across any mistakes in this tutorial feel free to open Github pull requests.*
 
 ---
 
@@ -1537,7 +1535,7 @@ The `bool checkBlackRow(const cv::Mat& roi, int y)` function checks whether the 
 
 **2.** Rewrite the **Stitching.mm** file as shown below:
 
-~~~swift
+~~~objc
 #import "Stitching.h"
 #import "Cropping.h"
 #import "StitchingWrapper.h"

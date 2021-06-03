@@ -1,9 +1,9 @@
 ---
-title: DJI Bridge App Tutorial Swift
+title: DJI Bridge App Tutorial (Swift)
 version: v4.14
 date: 5-25-2021
 github: https://github.com/SamScherer1/BridgeDemoSwift
-keywords: [DJI Bridge App demo, remote debugging]
+keywords: [DJI Bridge App demo, remote debugging, Swift]
 ---
 
 *If you come across any mistakes in this tutorial feel free to open Github pull requests.*

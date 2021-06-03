@@ -1,13 +1,13 @@
 ---
-title: Creating a Media Manager Application
-version: v4.12
-date: 2020-05-10
+title: Creating a Media Manager Application (Swift)
+version: v4.14
+date: 2021-06-03
 github: https://github.com/DJI-Mobile-SDK-Tutorials/iOS-PlaybackDemo
-keywords: [iOS mediaManager demo, mediaManager application, media download, download photos and videos, delete photos and videos]
+keywords: [iOS mediaManager demo, mediaManager application, media download, download photos and videos, delete photos and videos, Swift]
 
 ---
 
-*If you come across any mistakes or bugs in this tutorial, please let us know by sending emails to dev@dji.com. Please feel free to send us Github pull request and help us fix any issues.*
+*If you come across any mistakes in this tutorial feel free to open Github pull requests.*
 
 ---
 
