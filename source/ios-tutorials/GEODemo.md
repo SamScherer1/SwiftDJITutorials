@@ -1,20 +1,22 @@
 ---
-title: DJI GEO System Tutorial
-version: v4.4
-date: 2018-1-25
-github: https://github.com/DJI-Mobile-SDK-Tutorials/iOS-GEODemo
-keywords: [iOS GEODemo, GEO System, Fly Zone, Unlock, Authorization Fly Zone, NFZ]
+title: DJI GEO System Tutorial (Swift)
+version: v4.14
+date: 2021-6-03
+github: https://github.com/SamScherer1/GeoDemoSwift
+keywords: [iOS GEODemo, GEO System, Fly Zone, Unlock, Authorization Fly Zone, NFZ, Swift]
 ---
 
-*If you come across any mistakes or bugs in this tutorial, please let us know by sending emails to dev@dji.com. Please feel free to send us Github pull request and help us fix any issues.*
+*If you come across any mistakes in this tutorial feel free to open Github pull requests.*
 
 ---
 
 In this tutorial, you will learn how to use the `DJIFlyZoneManager` and `DJIFlyZoneInformation` of DJI Mobile SDK to get the fly zone information, and unlock authorization fly zones.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-GEODemo).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/GeoDemoSwift).
 
-We use Mavic Pro as an example to make this demo. Let's get started!
+See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-GEODemo) for an Objective C version. 
+
+We used a Mavic Pro to make this demo. Let's get started!
 
 ## Introduction
 
@@ -56,42 +58,41 @@ Then drag and drop 7 UIButton objects and place them on the upper left side, nam
 
 ## Working on RootViewController
 
-Let's open RootViewController.m file and create IBOutlets properties to link the UI elements in the storyboard. Then add the following method to update the two UILabel objects' content when product connection update: 
+Let's open RootViewController.swift file and create IBOutlets properties to link the UI elements in the storyboard. Then add the following method to update the two UILabel objects' content when product connection update: 
 
-~~~objc
--(void) updateStatusBasedOn:(DJIBaseProduct* )newConnectedProduct {
-    if (newConnectedProduct){
-        self.connectStatusLabel.text = NSLocalizedString(@"Status: Product Connected", @"");
-        self.modelNameLabel.text = [NSString stringWithFormat:NSLocalizedString(@"Model: \%@", @""),newConnectedProduct.model];
-        self.modelNameLabel.hidden = NO;
-        
-    }else {
-        self.connectStatusLabel.text = NSLocalizedString(@"Status: Product Not Connected", @"");
-        self.modelNameLabel.text = NSLocalizedString(@"Model: Unknown", @"");
+~~~swift
+    func updateStatusFor(_ product:DJIBaseProduct?) {
+        if let product = product {
+            self.connectStatusLabel.text = "Status: Product Connected"
+            self.modelNameLabel.text = "Model: \(product.model ?? "Unknown")"
+            self.modelNameLabel.isHidden = false
+        } else {
+            self.connectStatusLabel.text = "Status: Product Not Connected"
+            self.modelNameLabel.text = "Model: Unknown"
+        }
     }
-}
 ~~~
 
 Next, invoke the above method at the end of both the `viewDidAppear` method and `productConnected:` method as shown below:
 
-~~~objc
-- (void)viewDidAppear:(BOOL)animated
-{
-    ...
-    
-    if(self.product){
-        [self updateStatusBasedOn:self.product];
+~~~swift
+    override func viewDidAppear(_ animated: Bool) {
+        
+        ...
+
+        if let product = self.product {
+            self.updateStatusFor(product)
+        }
     }
-}
 ~~~
 
-~~~objc
-- (void)productConnected:(DJIBaseProduct *)product
-{
-    ...
-    
-    [self updateStatusBasedOn:product];
-}
+~~~swift
+    func productConnected(_ product: DJIBaseProduct?) {
+        
+        ...
+
+        self.updateStatusFor(product)
+    }
 ~~~
 
 For more details of the implementation of RootViewController, please check the tutorial's Github sample project.
@@ -102,90 +103,56 @@ For more details of the implementation of RootViewController, please check the t
 
 Let's continue to add the aircraft annotation on the map to show its position when we are testing the GEO system feature.
 
-Firstly, create a subclass of NSObject and named it as "DJIAircraftAnnotation", replace the code of its header and implementation files as shown below:
+Firstly, create a subclass of NSObject and named it "AircraftAnnotation" and add the following code:
 
-- DJIAircraftAnnotation.h
+- AircraftAnnotation.swift
 
-~~~objc
-#import <MapKit/MapKit.h>
-#import <CoreLocation/CoreLocation.h>
+~~~swift
+import Foundation
+import MapKit
 
-@interface DJIAircraftAnnotation : NSObject <MKAnnotation>
-
-@property (nonatomic) CLLocationCoordinate2D coordinate;
-@property (nonatomic, assign) CGFloat heading;
-
--(id) initWithCoordinate:(CLLocationCoordinate2D)coordinate heading:(CGFloat)heading;
-
-@end
-~~~
-
-- DJIAircraftAnnotation.m
-
-~~~objc
-#import "DJIAircraftAnnotation.h"
-
-@implementation DJIAircraftAnnotation
-
--(id) initWithCoordinate:(CLLocationCoordinate2D)coordinate heading:(CGFloat)heading
-{
-    self = [super init];
-    if (self) {
-        self.coordinate = coordinate;
-        self.heading = heading;
+class AircraftAnnotation : NSObject, MKAnnotation {
+    var coordinate: CLLocationCoordinate2D
+    var annotationView : AircraftAnnotationView?
+    
+    init(coordinate:CLLocationCoordinate2D, heading:Float) {
+        self.coordinate = coordinate
+        self.annotationView?.update(heading: heading)
+        super.init()
     }
-    return self;
 }
-
-@end
 ~~~
 
 In the code above, we implement the **MKAnnotation** protocol and declare a property of CLLocationCoordinate2D object **coordinate**, which will be used to store the coordinate data. Then declare a CGFloat property **heading**, and use it to store the heading value of the aircraft.  
 
 Then implement the `initWithCoordinate:heading:` method in the implementation file. 
 
-Once you finish it, let's create a class named "DJIAircraftAnnotationView", which is a subclass of **MKAnnotationView**, and replace the codes of header and implementation files with the followings:
+Once you finish it, let's create a class named "AircraftAnnotationView", which is a subclass of **MKAnnotationView**, and replace the content with the following:
 
-- DJIAircraftAnnotationView.h
+- AircraftAnnotationView.swift
 
-~~~objc
-#import <MapKit/MapKit.h>
+~~~swift
+import Foundation
+import MapKit
 
-@interface DJIAircraftAnnotationView : MKAnnotationView
-
-- (instancetype)initWithAnnotation:(id <MKAnnotation>)annotation reuseIdentifier:(NSString *)reuseIdentifier;
-
--(void)updateHeading:(float)heading;
-
-@end
-~~~
-
-- DJIAircraftAnnotationView.m
-
-~~~objc
-#import "DJIAircraftAnnotationView.h"
-
-@implementation DJIAircraftAnnotationView
-
-- (instancetype)initWithAnnotation:(id <MKAnnotation>)annotation reuseIdentifier:(NSString *)reuseIdentifier
-{
-    self = [super initWithAnnotation:annotation reuseIdentifier:reuseIdentifier];
-    if (self) {
-        self.enabled = NO;
-        self.draggable = NO;
-        self.image = [UIImage imageNamed:@"aircraft.png"];
+class AircraftAnnotationView: MKAnnotationView {
+    
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        self.isEnabled = false
+        self.isDraggable = false
+        self.image = UIImage(named: "aircraft.png")
     }
     
-    return self;
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+    }
+    
+    public func update(heading:Float) {
+        self.transform = CGAffineTransform.identity
+        self.transform = CGAffineTransform(rotationAngle: CGFloat(heading))
+    }
 }
-
--(void) updateHeading:(float)heading
-{
-    self.transform = CGAffineTransformIdentity;
-    self.transform = CGAffineTransformMakeRotation(heading);
-}
-
-@end
 ~~~
 
 In the code above, we firstly implement the `initWithAnnotation:resuseIdentifier:` method for initialization and create the `updateHeading:` method to update the heading of the aircraft annotation view.
@@ -198,21 +165,21 @@ Now, let's add circle overlay with different colors and polygon overlay to repre
 
 Create an MKCircle class named "DJIFlyZoneCircle" and implement its header file as shown below:
 
-- DJIFlyZoneCircle.h
+- FlyZoneCircle.swift
 
-~~~objc
-#import <MapKit/MapKit.h>
+~~~swift
+import Foundation
+import MapKit
+import DJISDK
 
-@interface DJIFlyZoneCircle : MKCircle
-
-@property (nonatomic, assign) CLLocationCoordinate2D flyZoneCoordinate;
-
-@property (nonatomic, assign) CGFloat flyZoneRadius;
-@property (nonatomic, assign) uint8_t category;
-@property (nonatomic, assign) NSUInteger flyZoneID;
-@property (nonatomic, copy) NSString* name;
-
-@end
+class FlyZoneCircle : MKCircle {
+     public var flyZoneCoordinate = CLLocationCoordinate2D(latitude: 0.0, longitude: 0.0)
+     public var flyZoneRadius : CGFloat = 0.0
+     public var category = DJIFlyZoneCategory.unknown
+     public var flyZoneID : UInt = 0
+     public var name : String?
+     public var heightLimit : CGFloat = 0.0
+}
 ~~~
 
 In the code above, we declare the following variables:
@@ -223,70 +190,27 @@ In the code above, we declare the following variables:
 4. **flyZoneID** property is used to store the fly zone's identifier, which is required in the unlock process
 5. **name** property is used to store the name of the fly zone.
 
-Next, let's create the **DJIFlyZoneCircleView** class, which is a subclass of MKCircleRenderer, and replace the codes with the followings:
+Next, let's create the **FlyZoneCircleView** class, which is a subclass of MKCircleRenderer, and replace the code with the following:
 
-- DJIFlyZoneCircleView.h
+- FlyZoneCircleView.swift
 
-~~~objc
-#import <MapKit/MapKit.h>
-#import "DJIFlyZoneCircle.h"
+~~~swift
+import Foundation
+import MapKit
 
-@interface DJIFlyZoneCircleView : MKCircleRenderer
-
-- (id)initWithCircle:(DJIFlyZoneCircle *)circle;
-
-@end
-~~~
-
-- DJIFlyZoneCircleView.m
-
-~~~objc
-#import "DJIFlyZoneCircleView.h"
-#import <DJISDK/DJISDK.h>
-
-#define AuthorizationColor      [UIColor yellowColor]
-#define RestrictedColor         [UIColor redColor]
-#define WarningColor        [UIColor greenColor]
-#define EnhancedWarningColor [UIColor greenColor]
-
-@implementation DJIFlyZoneCircleView
-
-- (id)initWithCircle:(DJIFlyZoneCircle *)circle
-{
-    self = [super initWithCircle:circle];
-    if (self) {
-        
-        self.fillColor = [[UIColor redColor] colorWithAlphaComponent:0.2];
-        self.strokeColor = [[UIColor redColor] colorWithAlphaComponent:0.9];
-        
-        if (circle.category == DJIFlyZoneCategoryAuthorization) {
-            
-            self.fillColor = [AuthorizationColor colorWithAlphaComponent:0.1];
-            self.strokeColor = [AuthorizationColor colorWithAlphaComponent:1.0];
-            
-        } else if (circle.category == DJIFlyZoneCategoryRestricted) {
-
-            self.fillColor = [RestrictedColor colorWithAlphaComponent:0.1];
-            self.strokeColor = [RestrictedColor colorWithAlphaComponent:1.0];
-            
-        } else if (circle.category == DJIFlyZoneCategoryWarning) {
-            
-            self.fillColor = [WarningColor colorWithAlphaComponent:0.1];
-            self.strokeColor = [WarningColor colorWithAlphaComponent:1.0];
-            
-        } else if (circle.category == DJIFlyZoneCategoryEnhancedWarning) {
-            
-            self.fillColor  = [EnhancedWarningColor colorWithAlphaComponent:0.1];
-            self.strokeColor = [EnhancedWarningColor colorWithAlphaComponent:1.0f];
-        }
-        
-        self.lineWidth = 3.0f;
+class FlyZoneCircleView : MKCircleRenderer {
+    init(circle: FlyZoneCircle) {
+        super.init(circle: circle as MKCircle)
+        self.fillColor = FlyZoneColorProvider.getFlyZoneOverlayColorFor(category: circle.category,
+                                                                        isHeightLimit: false,
+                                                                        isFill: true)
+        self.strokeColor = FlyZoneColorProvider.getFlyZoneOverlayColorFor(category: circle.category,
+                                                                          isHeightLimit: false,
+                                                                          isFill: false)
+        self.lineWidth = 1.0
     }
-    
-    return self;
 }
-
-@end
+//TODO: introduce FlyZoneColorProvider earlier or make this work standalone...
 ~~~
 
 In the code above, we implement the following feature:
@@ -304,305 +228,253 @@ In the code above, we implement the following feature:
 
 So far, we have finished implementing the aircraft annotation and fly zone overlay, For the polygon fly zone overlay, please check the implementations of the **DJIFlyLimitPolygonView** and **DJIPolygon** classes. For the implementation of subOverlay fly zones, please check the **DJILimitSpaceOverlay** and **DJIMapOverlay** classes. You can get these classes from this tutorial's Github sample project.
 
-Now, let's continue to implement the DJIMapViewController to add the fly zone overlay and subOverlay on the Map View.
+Now, let's continue to implement the MapController to add the fly zone overlays and subOverlays to the Map View.
 
-## Implementing DJIMapViewController
+## Implementing MapController
 
 ### Adding and Updating Aircraft Annotation on the Map View
 
-  Here, we may need to create a Map View to show the map and draw the fly zone circles and aircraft on it. Now create a new **ViewController** class named "DJIMapViewController" and then open the DJIMapViewController.h file and replace the content with the followings:
+  Here, we may need to create a Map View to show the map and draw the fly zone circles and aircraft on it. Now create a new class named "MapController" and replace the contents of MapController.swift with the following:
 
-~~~objc
-#import <UIKit/UIKit.h>
-#import <MapKit/MapKit.h>
-#import <CoreLocation/CoreLocation.h>
+~~~swift
+import Foundation
+import UIKit
+import MapKit
+import DJISDK
 
-@class DJIMapViewController;
+class MapController : NSObject, MKMapViewDelegate {
 
-@interface DJIMapViewController : NSObject
+    public var flyZones = [DJIFlyZoneInformation]()
 
-@property (nonatomic, strong) NSMutableArray *flyZones;
+    var aircraftCoordinate : CLLocationCoordinate2D
+    var mapView : MKMapView
+    var aircraftAnnotation : AircraftAnnotation?
 
-- (id)initWithMap:(MKMapView*)mapView;
+    public init(map: MKMapView) {
+        self.aircraftCoordinate = CLLocationCoordinate2DMake(0.0, 0.0)
+        self.mapView = map
+        
+        super.init()
+        
+        self.mapView.delegate = self
+        self.updateFlyZonesInSurroundingArea()
+    }
 
-/**
- *  Update aircraft location and heading.
- *
- *  @param coordinate Aircraft location
- *  @param heading    Aircraft heading
- */
--(void)updateAircraftLocation:(CLLocationCoordinate2D)coordinate withHeading:(CGFloat)heading;
+    public func updateAircraft(coordinate:CLLocationCoordinate2D, heading:Float) {
+        if CLLocationCoordinate2DIsValid(coordinate) {
+            self.aircraftCoordinate = coordinate
+            if let _ = self.aircraftAnnotation {
+                self.aircraftAnnotation?.coordinate = coordinate
+                let annotationView = (self.mapView.view(for: self.aircraftAnnotation!)) as? AircraftAnnotationView
+                annotationView?.update(heading: heading)
+            } else {
+                let aircraftAnnotation = AircraftAnnotation(coordinate: coordinate, heading: heading)
+                self.aircraftAnnotation = aircraftAnnotation
+                self.mapView.addAnnotation(aircraftAnnotation)
+                let viewRegion = MKCoordinateRegion(center: coordinate, latitudinalMeters: 500, longitudinalMeters: 500)
+                let adjustedRegion = self.mapView.regionThatFits(viewRegion)
+                self.mapView.setRegion(adjustedRegion, animated: true)
+            }
+            self.updateFlyZones()
+        }
+    }
 
-/**
- *  Refresh the map view region
- */
-- (void)refreshMapViewRegion;
+    public func refreshMapViewRegion() {
+        let viewRegion = MKCoordinateRegion(center: self.aircraftCoordinate, latitudinalMeters: 500, longitudinalMeters: 500)
+        let adjustedRegion = self.mapView.regionThatFits(viewRegion)
+        self.mapView.setRegion(adjustedRegion, animated: true)
+    }
 
-/**
- *  Update fly zones in the surrounding area of aircraft
- */
-- (void)updateFlyZonesInSurroundingArea;
+    public func updateFlyZonesInSurroundingArea() {
+        DJISDKManager.flyZoneManager()?.getFlyZonesInSurroundingArea(completion: { [weak self] (flyZones:[DJIFlyZoneInformation]?, error:Error?) in
+            if let flyZones = flyZones, error == nil {
+                self?.updateFlyZoneOverlayWith(flyZones)
+            } else {
+                if let mapOverlays = self?.mapOverlays {
+                    if mapOverlays.count > 0 {
+                        self?.remove(mapOverlays)
+                    }
+                }
+                if let flyZones = self?.flyZones {
+                    if flyZones.count > 0 {
+                        self?.flyZones.removeAll()
+                    }
+                }
+            }
+        })
+    }
 
 /**
  *  Get Update Fly Zone Info Strings
  **/
 - (NSString *)fetchUpdateFlyZoneInfo;
+//TODO: where did this go???
 
-@end
+}
 ~~~
 
 In the code above, we implement the following features:
 
 1. Create an NSMutableArray property and named it as `flyZones` to store `DJIFlyZoneInformation` objects.
+2. Create a **CLLocationCoordinate2D** property, a **AircraftAnnotation** property and a **MKMapView** property, then implement the **MKMapViewDelegate** protocol
 2. Create the initialization method `initWithMap:` for DJIMapViewController
-3. Create the `updateAircraftLocation:withHeading:` method to update the aircraft's location and heading on the map view
+3. Create the `updateAircraft(coordinate:CLLocationCoordinate2D, heading:Float)` method to update the aircraft's location and heading on the map view
 4. Add the `refreshMapViewRegion` method to refresh the map view's region
 5. Add the `updateFlyZonesInSurroundingArea` method to update the fly zones in the surrounding area of aircraft;
-6. Lastly, add the `fetchUpdateFlyZoneInfo` method to fetch the updated fly zone info strings. 
+6. Add the `fetchUpdateFlyZoneInfo` method to fetch the updated fly zone info strings. 
+7. In the `initWithMap:` method, we initialize the DJIMapViewController by passing the **MKMapView** object "mapView", then store it to the `mapView` property and set the `mapView`'s delegate to DJIMapViewController.
+8. In the `updateAircraft(coordinate:CLLocationCoordinate2D, heading:Float)` method, we first check if the `coordinate` is valid, then update the `aircraftCoordinate` property. If the `aircraftAnnotation` property is nil, invoke the `initWithCoordinate:heading:` method of **AircraftAnnotation** to create it, then invoke the **MKMapView**'s `addAnnotation:` method to add the aircraft annotation on the map. Lastly, adjust the map view's region by invoking the `setRegion:animated:` method.
 
-Next let's implement the `initWithMap:` and `updateAircraftLocation:withHeading:` methods in the **DJIMapViewController.m** file. 
-
-Firstly, we should create a **CLLocationCoordinate2D** property, a **DJIAircraftAnnotation** property and a **MKMapView** property, then implement the **MKMapViewDelegate** protocol in the class extension part as shown below:
-
-~~~objc
-#import "DJIMapViewController.h"
-#import <DJISDK/DJISDK.h>
-#import "DJIAircraftAnnotation.h"
-#import "DJIAircraftAnnotationView.h"
-
-@interface DJIMapViewController () <MKMapViewDelegate>
-
-@property (nonatomic) CLLocationCoordinate2D aircraftCoordinate;
-@property (weak, nonatomic) MKMapView *mapView;
-@property (nonatomic, strong) DJIAircraftAnnotation* aircraftAnnotation;
-
-@end
-~~~
-
-Next, implement the two methods as shown below:
-
-~~~objc
-- (id)initWithMap:(MKMapView*)mapView{
-    if (nil != mapView) {
-        self = [super init];
-        if (self) {
-            self.mapView = mapView;
-            self.mapView.delegate = self;
-        }
-        return self;
-    }
-    return nil;
-}
-
--(void) updateAircraftLocation:(CLLocationCoordinate2D)coordinate withHeading:(CGFloat)heading
-{
-    if (CLLocationCoordinate2DIsValid(coordinate)) {
-        
-        self.aircraftCoordinate = coordinate;
-        
-        if (self.aircraftAnnotation == nil) {
-            self.aircraftAnnotation =  [[DJIAircraftAnnotation alloc] initWithCoordinate:coordinate heading:heading];
-            [self.mapView addAnnotation:self.aircraftAnnotation];
-            MKCoordinateRegion viewRegion = MKCoordinateRegionMakeWithDistance(coordinate, 500, 500);
-            MKCoordinateRegion adjustedRegion = [self.mapView regionThatFits:viewRegion];
-            [self.mapView setRegion:adjustedRegion animated:YES];
-        }
-        else
-        {
-            [self.aircraftAnnotation setCoordinate:coordinate];
-            DJIAircraftAnnotationView *annotationView = (DJIAircraftAnnotationView *)[_mapView viewForAnnotation:self.aircraftAnnotation];
-            [annotationView updateHeading:heading];
-        }
-    }
-}
-~~~
-
-In the code above, we implement the following features:
-
-1. In the `initWithMap:` method, we initialize the DJIMapViewController by passing the **MKMapView** object "mapView", then store it to the `mapView` property and set the `mapView`'s delegate to DJIMapViewController.
-
-2. In the `updateAircraftLocation:withHeading:` method, we firstly check if the `coordinate` is valid, then update the `aircraftCoordinate` property. If the `aircraftAnnotation` property is nil, invoke the `initWithCoordinate:heading:` method of **DJIAircraftAnnotation** to create it, then invoke the **MKMapView**'s `addAnnotation:` method to add the aircraft annotation on the map. Lastly, adjust the map view's region by invoking the `setRegion:animated:` method.
-
-3. If the `aircraftAnnotation` property is not nil, then update its coordinate and the heading of the aircraft annotation view.
+10. If the `aircraftAnnotation` property is not nil, then update its coordinate and the heading of the aircraft annotation view.
 
 Lastly, implement the MKMapViewDelegate method as shown below:
 
-~~~objc
-- (MKAnnotationView *)mapView:(MKMapView *)mapView viewForAnnotation:(id <MKAnnotation>)annotation
-{
-    
-    if ([annotation isKindOfClass:[MKUserLocation class]]) {
-        return nil;
-    }else if ([annotation isKindOfClass:[DJIAircraftAnnotation class]])
-    {
-        
-        static NSString* aircraftReuseIdentifier = @"DJI_AIRCRAFT_ANNOTATION_VIEW";
-        DJIAircraftAnnotationView* aircraftAnno = (DJIAircraftAnnotationView*)[self.mapView dequeueReusableAnnotationViewWithIdentifier:aircraftReuseIdentifier];
-        if (aircraftAnno == nil) {
-            aircraftAnno = [[DJIAircraftAnnotationView alloc] initWithAnnotation:annotation reuseIdentifier:aircraftReuseIdentifier];
+~~~swift
+    func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        if annotation.isKind(of: MKUserLocation.self) { return nil }
+        if annotation.isKind(of: AircraftAnnotation.self) {
+            let aircraftAnno = self.mapView.dequeueReusableAnnotationView(withIdentifier: "DJI_AIRCRAFT_ANNOTATION_VIEW")
+            return aircraftAnno ?? AircraftAnnotationView(annotation: annotation, reuseIdentifier: "DJI_AIRCRAFT_ANNOTATION_VIEW")
         }
-
-        return aircraftAnno;
+        return nil
     }
-
-    return nil;
-}
 ~~~
 
 ### Adding Fly Zone Overlay on the Map View
 
 After we have added the aircraft annotation on the map, now let's add some fly zone overlays on the map to show the fly zone visually.
 
-Firstly, import the "DJIFlyZoneCircle.h" and "DJIFlyZoneCircleView.h" header files, then create an NSMutableArray property and named it as 'flyZones' to store the fly zone circle as shown below:
+First, create an NSMutableArray property and name it 'flyZones' to store the fly zone circle as shown below: //TODO: didn't actually add flyZones here... mapOverlays maybe?
 
-~~~objc
-#import "DJIMapViewController.h"
-#import <DJISDK/DJISDK.h>
-#import "DJIAircraftAnnotation.h"
-#import "DJIAircraftAnnotationView.h"
-#import "DJIFlyZoneCircle.h"
-#import "DJIFlyZoneCircleView.h"
-#import "DemoUtility.h"
-#import "DJILimitSpaceOverlay.h"
-#import "DJIMapPolygon.h"
-#import "DJIFlyLimitPolygonView.h"
-#import "DJICircle.h"
+~~~swift
+import Foundation
+import UIKit
+import MapKit
+import DJISDK
 
-@interface DJIMapViewController () <MKMapViewDelegate>
 
-@property (nonatomic) CLLocationCoordinate2D aircraftCoordinate;
-@property (weak, nonatomic) MKMapView *mapView;
-@property (nonatomic, strong) DJIAircraftAnnotation* aircraftAnnotation;
-@property (nonatomic, strong) NSMutableArray<DJIMapOverlay *> *mapOverlays;
-@property (nonatomic, assign) NSTimeInterval lastUpdateTime;
+class MapController : NSObject, MKMapViewDelegate {
 
-@end
+    public var flyZones = [DJIFlyZoneInformation]()//TODO: public scope necessary?
+    var aircraftCoordinate : CLLocationCoordinate2D
+    var mapView : MKMapView
+    var aircraftAnnotation : AircraftAnnotation?
+    var mapOverlays = [MapOverlay]()
+    var lastUpdateTime = Date.timeIntervalSinceReferenceDate
+
+    ...
+
+}
 ~~~
 
-For the "DemoUtility.h" file, we will implement it later.
+For the "DemoUtility.swift" file, we will implement it later. ??? wtf?
 
-Next, add the following code to initialize the `flyZones` and `mapOverlays` arrays and invoke the `forceUpdateFlyZones` method to force update fly zones at the bottom of `initWithMap:` method:
+Next, invoke the `updateFlyZonesInSurroundingArea()` method to force update fly zones at the bottom of `init(map:)` method:
 
-~~~objc
-            self.flyZones = [NSMutableArray array];
-            self.mapOverlays = [NSMutableArray array];
+~~~swift
+    public init(map: MKMapView) {
+
+        ...
+        
+        self.updateFlyZonesInSurroundingArea()
+    }
 ~~~
 
 Moreover, implement the `updateFlyZonesInSurroundingArea` and `updateFlyZoneOverlayWithInfos:` methods as shown below:
+//TODO: what did they look like before?
 
-~~~objc
--(void) updateAircraftLocation:(CLLocationCoordinate2D)coordinate withHeading:(CGFloat)heading
-{
-    if (CLLocationCoordinate2DIsValid(coordinate)) {
-        
-        self.aircraftCoordinate = coordinate;
-        
-        if (self.aircraftAnnotation == nil) {
-            self.aircraftAnnotation =  [[DJIAircraftAnnotation alloc] initWithCoordinate:coordinate heading:heading];
-            [self.mapView addAnnotation:self.aircraftAnnotation];
-            MKCoordinateRegion viewRegion = MKCoordinateRegionMakeWithDistance(coordinate, 500, 500);
-            MKCoordinateRegion adjustedRegion = [self.mapView regionThatFits:viewRegion];
-            [self.mapView setRegion:adjustedRegion animated:YES];
-            [self updateFlyZones];
-        }
-        else
-        {
-            [self.aircraftAnnotation setCoordinate:coordinate];
-            DJIAircraftAnnotationView *annotationView = (DJIAircraftAnnotationView *)[_mapView viewForAnnotation:self.aircraftAnnotation];
-            [annotationView updateHeading:heading];
-            [self updateFlyZones];
-        }
-        
-    }
-}
-
--(void) updateFlyZones
-{
-    if ([self canUpdateLimitFlyZoneWithCoordinate]) {
-        [self updateFlyZonesInSurroundingArea];
-    }
-}
-
--(BOOL) canUpdateLimitFlyZoneWithCoordinate
-{
-    NSTimeInterval currentTime = [NSDate timeIntervalSinceReferenceDate];
-    
-    if ((currentTime - self.lastUpdateTime) < UPDATETIMESTAMP) {
-        return NO;
-    }
-    
-    self.lastUpdateTime = [NSDate timeIntervalSinceReferenceDate];
-    return YES;
-}
-
-- (void)forceUpdateFlyZones
-{
-    [self updateFlyZonesInSurroundingArea];
-}
-
--(void) updateFlyZonesInSurroundingArea
-{
-    WeakRef(target);
-    [[DJISDKManager flyZoneManager] getFlyZonesInSurroundingAreaWithCompletion:^(NSArray<DJIFlyZoneInformation *> * _Nullable infos, NSError * _Nullable error) {
-        WeakReturn(target);
-        if (nil == error && nil != infos) {
-            [target updateFlyZoneOverlayWithInfos:infos];
-        }else{
-            NSLog(@"Get fly zone failed: %@", error.description);
-            if (target.mapOverlays.count > 0) {
-                [target removeMapOverlays:target.mapOverlays];
+~~~swift
+    public func updateAircraft(coordinate:CLLocationCoordinate2D, heading:Float) {
+        if CLLocationCoordinate2DIsValid(coordinate) {
+            self.aircraftCoordinate = coordinate
+            if let _ = self.aircraftAnnotation {
+                self.aircraftAnnotation?.coordinate = coordinate
+                let annotationView = (self.mapView.view(for: self.aircraftAnnotation!)) as? AircraftAnnotationView
+                annotationView?.update(heading: heading)
+            } else {
+                let aircraftAnnotation = AircraftAnnotation(coordinate: coordinate, heading: heading)
+                self.aircraftAnnotation = aircraftAnnotation
+                self.mapView.addAnnotation(aircraftAnnotation)
+                let viewRegion = MKCoordinateRegion(center: coordinate, latitudinalMeters: 500, longitudinalMeters: 500)
+                let adjustedRegion = self.mapView.regionThatFits(viewRegion)
+                self.mapView.setRegion(adjustedRegion, animated: true)
             }
-            if (target.flyZones.count > 0) {
-                [target.flyZones removeAllObjects];
-            }
+            self.updateFlyZones()
         }
-    }];
-}
+    }
 
-- (void)updateFlyZoneOverlayWithInfos:(NSArray<DJIFlyZoneInformation*> *_Nullable)flyZoneInfos
-{
-    if (flyZoneInfos && flyZoneInfos.count > 0) {
-        dispatch_block_t block = ^{
-            NSMutableArray *overlays = [NSMutableArray array];
-            NSMutableArray *flyZones = [NSMutableArray array];
-            
-            for (int i = 0; i < flyZoneInfos.count; i++) {
-                DJIFlyZoneInformation *flyZoneLimitInfo = [flyZoneInfos objectAtIndex:i];
-                DJILimitSpaceOverlay *aOverlay = nil;
-                for (DJILimitSpaceOverlay *aMapOverlay in _mapOverlays) {
-                    if (aMapOverlay.limitSpaceInfo.flyZoneID == flyZoneLimitInfo.flyZoneID &&
-                        (aMapOverlay.limitSpaceInfo.subFlyZones.count == flyZoneLimitInfo.subFlyZones.count)) {
-                        aOverlay = aMapOverlay;
-                        break;
+    func updateFlyZones() {
+        if self.canUpdateLimitFlyZoneWithCoordinate() {
+            self.updateFlyZonesInSurroundingArea()
+        }
+    }
+
+    func canUpdateLimitFlyZoneWithCoordinate() -> Bool {
+        let currentTime = Date.timeIntervalSinceReferenceDate
+        if (currentTime - self.lastUpdateTime) < kUpdateTimeStamp {
+            return false
+        }
+        self.lastUpdateTime = currentTime
+        return true
+    }
+
+    public func updateFlyZonesInSurroundingArea() {
+        DJISDKManager.flyZoneManager()?.getFlyZonesInSurroundingArea(completion: { [weak self] (flyZones:[DJIFlyZoneInformation]?, error:Error?) in
+            if let flyZones = flyZones, error == nil {
+                self?.updateFlyZoneOverlayWith(flyZones)
+            } else {
+                if let mapOverlays = self?.mapOverlays {
+                    if mapOverlays.count > 0 {
+                        self?.remove(mapOverlays)
                     }
                 }
-                if (!aOverlay) {
-                    aOverlay = [[DJILimitSpaceOverlay alloc] initWithLimitSpace:flyZoneLimitInfo];
+                if let flyZones = self?.flyZones {
+                    if flyZones.count > 0 {
+                        self?.flyZones.removeAll()
+                    }
                 }
-                [overlays addObject:aOverlay];
-                [flyZones addObject:flyZoneLimitInfo];
             }
-            [self removeMapOverlays:self.mapOverlays];
-            [self.flyZones removeAllObjects];
-            [self addMapOverlays:overlays];
-            [self.flyZones addObjectsFromArray:flyZones];
-        };
-        if ([NSThread currentThread].isMainThread) {
-            block();
-        } else {
-            dispatch_sync(dispatch_get_main_queue(), ^{
-                block();
-            });
-        }
+        })
     }
-}
+
+
+    func updateFlyZoneOverlayWith(_ flyZones:[DJIFlyZoneInformation]?) {
+        guard let flyZones = flyZones, flyZones.count > 0 else { return }
+        let updateOverlaysClosure = {
+            var overlays = [LimitSpaceOverlay]()
+            var limitFlyZones = [DJIFlyZoneInformation]()
+            
+            for flyZone in flyZones {
+                var anOverlay : LimitSpaceOverlay?
+                for aMapOverlay in self.mapOverlays as! [LimitSpaceOverlay] {
+                    if (aMapOverlay.limitSpaceInfo.flyZoneID == flyZone.flyZoneID) && (aMapOverlay.limitSpaceInfo.subFlyZones?.count == flyZone.subFlyZones?.count) {
+                        anOverlay = aMapOverlay
+                        break
+                    }
+                }
+                //TODO: test this!
+//                if anOverlay == nil {
+//                    anOverlay = LimitSpaceOverlay(limitSpaceInfo: flyZone)
+//                }
+//                overlays.append(anOverlay!)
+                overlays.append(anOverlay ?? LimitSpaceOverlay(limitSpaceInfo: flyZone))
+                limitFlyZones.append(flyZone)
+            }
+
+            self.remove(self.mapOverlays)
+            self.flyZones.removeAll()
+            self.add(overlays)
+            self.flyZones.append(contentsOf: limitFlyZones)
+        }
 ~~~
 
 In the code above, we implement the following features:
 
-1. We invoke the `updateFlyZonesInSurroundingArea` method in the `updateFlyZones` and `forceUpdateFlyZones` methods to update the fly zones and the `updateFlyZones` method will be invoke in the `updateAircraftLocation:withHeading:` method when the aircraft location changes.
+1. We invoke the `updateFlyZonesInSurroundingArea()` method in the `updateFlyZones` and `forceUpdateFlyZones` methods to update the fly zones and the `updateFlyZones` method will be invoke in the `updateAircraftLocation:withHeading:` method when the aircraft location changes.
 
-2. In the `updateFlyZonesInSurroundingArea` method, we invoke the `getFlyZonesInSurroundingAreaWithCompletion:` method of **DJIFlyZoneManager** to get all the fly zones within 20km of the aircraft. If you are using DJISimulator to test the GEO system feature, this method is available only when the aircraft location is within 50km of (37.460484, -122.115312), which is the coordinate of **Palo Alto Airport**. Then in the completion method, if it gets the `infos` array successfully, we invoke the `updateFlyZoneOverlayWithInfos:` method to update the fly zone overlays on the map view. Otherwise, remove the map overlays on the map view and clean up the `flyZones` array.
+2. In the `updateFlyZonesInSurroundingArea()` method, we invoke the `getFlyZonesInSurroundingAreaWithCompletion:` method of **DJIFlyZoneManager** to get all the fly zones within 20km of the aircraft. If you are using DJISimulator to test the GEO system feature, this method is available only when the aircraft location is within 50km of (37.460484, -122.115312), which is the coordinate of **Palo Alto Airport** //TODO: is this actually true? Test... . Then in the completion method, if it gets the `flyZones` array successfully, we invoke the `updateFlyZoneOverlayWithInfos:` method to update the fly zone overlays on the map view. Otherwise, remove the map overlays on the map view and clean up the `flyZones` array.
+
+//TODO: resume here!
 
 3. In the `updateFlyZoneOverlayWithInfos:` method, we firstly create the `overlays` and `flyZones` arrays to store the `DJILimitSpaceOverlay` and `DJIFlyZoneInformation` objects. Next, use a **for** loop to get the `DJILimitSpaceOverlay` and `DJIFlyZoneInformation` objects and store in the arrays. 
 
@@ -611,7 +483,7 @@ invoke the `addMapOverlays` methods to new `DJILimitSpaceOverlay` fly zone overl
 
 Finally, let's implement the `refreshMapViewRegion` method as shown below:
 
-~~~objc
+~~~swift
 - (void)refreshMapViewRegion
 {
     MKCoordinateRegion viewRegion = MKCoordinateRegionMakeWithDistance(_aircraftCoordinate, 500, 500);
@@ -632,7 +504,7 @@ Before implement the **DJIGeoDemoViewController**, let's implement the **DemoUti
 
 - DemoUtility.h
 
-~~~objc
+~~~swift
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
@@ -659,7 +531,7 @@ extern void ShowResult(NSString *format, ...);
 
 - DemoUtility.m
 
-~~~objc
+~~~swift
 #import "DemoUtility.h"
 #import <DJISDK/DJISDK.h>
 
@@ -717,7 +589,7 @@ In the code above, we mainly create the three methods to fetch the **DJIBaseProd
 
   Now, let's open the DJIGeoDemoViewController.m file and import the following header files and create related IBOutlet properties and IBAction methods to link the UI elements in the storyboard:
   
-~~~objc
+~~~swift
 #import "DJIGeoDemoViewController.h"
 #import "DJIMapViewController.h"
 #import <DJISDK/DJISDK.h>
@@ -746,7 +618,7 @@ In the code above, we also create a **DJIMapViewController** property `djiMapVie
 
 Next, let's implement the `onLoginButtonClicked:` and `onLogoutButtonClicked:` IBAction methods as shown below:
 
-~~~objc
+~~~swift
 - (IBAction)onLoginButtonClicked:(id)sender
 {
     [[DJISDKManager flyZoneManager] logIntoDJIUserAccountWithCompletion:^(DJIUserAccountStatus status, NSError * _Nullable error) {
@@ -775,7 +647,7 @@ Here, we invoke the `logIntoDJIUserAccountWithCompletion:` method of DJIFlyZoneM
 
 Lastly, in order to update the `loginStateLabel` with the user account status, we may need to init the `updateLoginStateTimer` in the `viewWillAppear:` method as shown below:
 
-~~~objc
+~~~swift
 - (void)viewWillAppear:(BOOL)animated
 {
    [super viewWillAppear:animated];
@@ -835,7 +707,7 @@ Moreover, you can also use the **DJISimulator** to control the aircraft in a sim
 
 Now let's implement the start and stop simulator buttons' IBAction methods as shown below:
 
-~~~objc
+~~~swift
 - (void)viewDidLoad
 {
     [super viewDidLoad];
@@ -928,7 +800,7 @@ If you want to unlock a fly zone, you may need to get the fly zone's ID first. N
 
 Implement the **DJIFlyZoneDelegate**, **DJIFlightControllerDelegate**, **UITableViewDelegate** and **UITableViewDataSource** protocols in the class extension part of DJIGeoDemoViewController and declare the `updateFlyZoneDataTimer`, `unlockFlyZoneIDs`, `showFlyZoneMessageTableView` and `flyZoneInfoView` properties as shown below:
 
-~~~objc
+~~~swift
 
 @interface DJIGeoDemoViewController ()<DJIFlyZoneDelegate, DJIFlightControllerDelegate, UITableViewDelegate, UITableViewDataSource>
 
@@ -955,7 +827,7 @@ Implement the **DJIFlyZoneDelegate**, **DJIFlightControllerDelegate**, **UITable
 
 Next, let's refactor the `viewDidLoad` method and implement the `initUI` method as shown below:
 
-~~~objc
+~~~swift
 - (void)viewDidLoad
 {
     [super viewDidLoad];
@@ -988,7 +860,7 @@ In the code above, we set the `delegate` property of **DJIFlightController**, **
 
 In the `viewWillAppear:` method, let's add the following code at the bottom to update the fly zones in the aircraft's surrounding area and initialize the `updateFlyZoneDataTimer` property:
 
-~~~objc    
+~~~swift    
   self.updateFlyZoneDataTimer = [NSTimer scheduledTimerWithTimeInterval:4.0f target:self selector:@selector(onUpdateFlyZoneInfo) userInfo:nil repeats:YES];
   
   [self.djiMapViewController updateFlyZonesInSurroundingArea];
@@ -996,14 +868,14 @@ In the `viewWillAppear:` method, let's add the following code at the bottom to u
  
 Then in the `viewWillDisappear:` method, add the following code to set `updateFlyZoneDataTimer` to nil at the bottom:
 
-~~~objc
+~~~swift
    if (self.updateFlyZoneDataTimer)
         self.updateFlyZoneDataTimer = nil;
 ~~~
 
 Furthermore, implement the selector method of `onUpdateFlyZoneInfo` as shown below:
 
-~~~objc
+~~~swift
 - (void)onUpdateFlyZoneInfo
 {
     [self.showFlyZoneMessageTableView reloadData];
@@ -1014,7 +886,7 @@ In the code above, we invoke the `reloadData` method of UITableView to update th
 
 Moreover, let's implement the delegate methods of **DJIFlyZoneDelegate** and **DJIFlightControllerDelegate** as shown below:
 
-~~~objc
+~~~swift
 #pragma mark - DJIFlyZoneDelegate Method
 
 -(void)flyZoneManager:(DJIFlyZoneManager *)manager didUpdateFlyZoneState:(DJIFlyZoneState)state
@@ -1159,19 +1031,19 @@ In the code above, we implement the following features:
 
 Once you finish the above steps, let's implement the unlock fly zone feature. Create the `unlockFlyZoneIDs` property in the class extension part as shown below:
 
-~~~objc
+~~~swift
 @property (nonatomic, strong) NSMutableArray<NSNumber *> * unlockFlyZoneIDs;
 ~~~
 
 Then add the following code to initialize the property in the `initUI` method as shown below:
 
-~~~objc
+~~~swift
 self.unlockFlyZoneIDs = [[NSMutableArray alloc] init];
 ~~~
 
 Now let's implement the `onUnlockButtonClicked` and `onGetUnlockButtonClicked` IBAction methods and the `showFlyZoneIDInputView` method as shown below:
 
-~~~objc
+~~~swift
 - (IBAction)onUnlockButtonClicked:(id)sender
 {
     [self showFlyZoneIDInputView];
@@ -1278,7 +1150,7 @@ After unlocking the fly zone, let's continue to implement the feature of enablin
 
 Create and add the following properties in the class extension part as shown below:
 
-~~~objc
+~~~swift
 @property (weak, nonatomic) IBOutlet UIPickerView *pickerView;
 @property (weak, nonatomic) IBOutlet UIView *pickerContainerView;
 @property (nonatomic, strong) NSMutableArray<DJIFlyZoneInformation *> * unlockedFlyZoneInfos;
@@ -1290,7 +1162,7 @@ In the code above, we create IBOutlet properties to link the UI elements in the 
 
 Once you finished the steps above, let's continue to implement the following methods:
 
-~~~objc
+~~~swift
 - (void)viewDidLoad
 {
     ...
@@ -1308,7 +1180,7 @@ Here, we hide the `pickerContainerView` in the `viewDidLoad` method first and in
 
 Next, add the following code in the `onGetUnlockButtonClicked` method to add unlocked `DJIFlyZoneInformation` objects in the `unlockedFlyZoneInfos` array:
 
-~~~objc
+~~~swift
 if ([target.unlockedFlyZoneInfos count] > 0) {
     [target.unlockedFlyZoneInfos removeAllObjects];
 }
@@ -1317,7 +1189,7 @@ if ([target.unlockedFlyZoneInfos count] > 0) {
 
 Lastly, implement the following methods:
 
-~~~objc
+~~~swift
 - (IBAction)enableUnlocking:(id)sender {
     
     [self.pickerContainerView setHidden:NO];
