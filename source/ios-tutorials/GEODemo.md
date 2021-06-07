@@ -474,221 +474,172 @@ In the code above, we implement the following features:
 
 2. In the `updateFlyZonesInSurroundingArea()` method, we invoke the `getFlyZonesInSurroundingAreaWithCompletion:` method of **DJIFlyZoneManager** to get all the fly zones within 20km of the aircraft. If you are using DJISimulator to test the GEO system feature, this method is available only when the aircraft location is within 50km of (37.460484, -122.115312), which is the coordinate of **Palo Alto Airport** //TODO: is this actually true? Test... . Then in the completion method, if it gets the `flyZones` array successfully, we invoke the `updateFlyZoneOverlayWithInfos:` method to update the fly zone overlays on the map view. Otherwise, remove the map overlays on the map view and clean up the `flyZones` array.
 
-//TODO: resume here!
 
-3. In the `updateFlyZoneOverlayWithInfos:` method, we firstly create the `overlays` and `flyZones` arrays to store the `DJILimitSpaceOverlay` and `DJIFlyZoneInformation` objects. Next, use a **for** loop to get the `DJILimitSpaceOverlay` and `DJIFlyZoneInformation` objects and store in the arrays. 
+3. In the `updateFlyZoneOverlayWith(_ flyZones:)` method, we first create the `overlays` and `flyZones` arrays to store the `DJILimitSpaceOverlay` and `DJIFlyZoneInformation` objects. Next, use a **for** loop to get the `DJILimitSpaceOverlay` and `DJIFlyZoneInformation` objects and store in the arrays. 
 
-Furthermore, remove the fly zone overlays on the map by invoking the `removeMapOverLays` method first and remove objects in the `flyZones` array. Then
+Furthermore, remove the fly zone overlays on the map by invoking the `remove(_ mapOverlays:)` method first and remove objects in the `flyZones` array. Then
 invoke the `addMapOverlays` methods to new `DJILimitSpaceOverlay` fly zone overlays on the map and add new `DJIFlyZoneInformation` objects in the `flyZones` array.
 
-Finally, let's implement the `refreshMapViewRegion` method as shown below:
+Finally, let's implement the `refreshMapViewRegion()` method as shown below:
 
 ~~~swift
-- (void)refreshMapViewRegion
-{
-    MKCoordinateRegion viewRegion = MKCoordinateRegionMakeWithDistance(_aircraftCoordinate, 500, 500);
-    MKCoordinateRegion adjustedRegion = [self.mapView regionThatFits:viewRegion];
-    [self.mapView setRegion:adjustedRegion animated:YES];
-}
+    public func refreshMapViewRegion() {//TODO: needs to be public? update after test...
+        let viewRegion = MKCoordinateRegion(center: self.aircraftCoordinate, latitudinalMeters: 500, longitudinalMeters: 500)
+        let adjustedRegion = self.mapView.regionThatFits(viewRegion)
+        self.mapView.setRegion(adjustedRegion, animated: true)
+    }
 ~~~
 
 In the code above, we invoke the `setRegion:animated:` method of MKMapView to update the region on the map view when the aircraft coordinate changes.
 
-For more details, please check the **DJIMapViewController** class in this tutorial's Github sample code.
+For more details, please check the **MapController** class in this tutorial's Github sample code.
 
-## Implementing DJIGeoDemoViewController
+## Implementing GeoDemoViewController
 
 ### Implementing DemoUtility
 
-Before implement the **DJIGeoDemoViewController**, let's implement the **DemoUtility** class first to implement some common methods. Create an NSObject class named "DemoUtility" and update the codes in the header file and implementation file as shown below:
+Before implementing the **GeoDemoViewController**, let's implement some common methods in **DemoUtility**. Create an NSObject class named "DemoUtility" and update the codes in the header file and implementation file as shown below:
 
-- DemoUtility.h
-
-~~~swift
-#import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
-
-#define WeakRef(__obj) __weak typeof(self) __obj = self
-#define WeakReturn(__obj) if(__obj ==nil)return;
-
-@class DJIBaseProduct;
-@class DJIAircraft;
-@class DJIGimbal;
-@class DJIFlightController;
-
-#define RADIAN(x) ((x)*M_PI/180.0)
-
-extern void ShowResult(NSString *format, ...);
-
-@interface DemoUtility : NSObject
-
-+(DJIBaseProduct*) fetchProduct;
-+(DJIAircraft*) fetchAircraft;
-+(DJIFlightController*) fetchFlightController;
-
-@end
-~~~
-
-- DemoUtility.m
+- DemoUtility.swift
 
 ~~~swift
-#import "DemoUtility.h"
-#import <DJISDK/DJISDK.h>
+import Foundation
+import DJISDK
 
-void ShowResult(NSString *format, ...)
-{
-    va_list argumentList;
-    va_start(argumentList, format);
-    
-    NSString* message = [[NSString alloc] initWithFormat:format arguments:argumentList];
-    va_end(argumentList);
-    NSString * newMessage = [message hasSuffix:@":(null)"] ? [message stringByReplacingOccurrencesOfString:@":(null)" withString:@" successful!"] : message;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIAlertController* alertViewController = [UIAlertController alertControllerWithTitle:nil message:newMessage preferredStyle:UIAlertControllerStyleAlert];
-        UIAlertAction* okAction = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil];
-        [alertViewController addAction:okAction];
-        UINavigationController* navController = (UINavigationController*)[[UIApplication sharedApplication] keyWindow].rootViewController;
-        [navController presentViewController:alertViewController animated:YES completion:nil];
-    });
+func showAlertWith(result:String) {
+        let okAction = UIAlertAction.init(title: "OK", style: UIAlertAction.Style.default, handler: nil)
+    showAlertWith(title: nil, message: result, cancelAction: nil, defaultAction: okAction, presentingViewController: nil)
 }
 
-@implementation DemoUtility
-
-+(DJIBaseProduct*) fetchProduct {
-    return [DJISDKManager product];
+func showAlertWith(title: String?, message: String, cancelAction:UIAlertAction?, defaultAction:UIAlertAction?, presentingViewController:UIViewController?) {
+    DispatchQueue.main.async {
+        let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        if let defaultAction = defaultAction {
+            alertController.addAction(defaultAction)
+        }
+        if let cancelAction = cancelAction {
+            alertController.addAction(cancelAction)
+        }
+        if let presentingViewController = presentingViewController {
+            presentingViewController.present(alertController, animated: true, completion: nil)
+        } else {
+            let navController = UIApplication.shared.keyWindow?.rootViewController as! UINavigationController
+            navController.present(alertController, animated: true, completion: nil)
+        }
+    }
 }
 
-+(DJIAircraft*) fetchAircraft {
-    if (![DJISDKManager product]) {
-        return nil;
-    }
-    if ([[DJISDKManager product] isKindOfClass:[DJIAircraft class]]) {
-        return ((DJIAircraft*)[DJISDKManager product]);
-    }
-    return nil;
+func fetchAircraft () -> DJIAircraft? {
+    return DJISDKManager.product() as? DJIAircraft
 }
 
-+(DJIFlightController*) fetchFlightController {
-    if (![DJISDKManager product]) {
-        return nil;
-    }
-    
-    if ([[DJISDKManager product] isKindOfClass:[DJIAircraft class]]) {
-        return ((DJIAircraft*)[DJISDKManager product]).flightController;
-    }
-    
-    return nil;
+func fetchFlightController() -> DJIFlightController? {
+    let aircraft = DJISDKManager.product() as? DJIAircraft
+    return aircraft?.flightController
 }
-
-@end
 ~~~
 
-In the code above, we mainly create the three methods to fetch the **DJIBaseProduct**, **DJIAircraft**, and **DJIFlightController** objects. Moreover, create an extern function `ShowResult` to present a UIAlertController for showing messages.
+In the code above, we mainly create the three methods to fetch the **DJIAircraft**, and **DJIFlightController** objects. Moreover, create global functions `showAlertWith(result:)` and `showAlertWith(title: message: cancelAction: defaultAction: presentingViewController:)` to present a UIAlertController for showing messages.
 
 ### Implementing Login and Logout Features
 
-  Now, let's open the DJIGeoDemoViewController.m file and import the following header files and create related IBOutlet properties and IBAction methods to link the UI elements in the storyboard:
+  Now, let's open the GeoDemoViewController.swift file, import the following modules and create related IBOutlet properties and IBAction methods to link to the UI elements in the storyboard:
   
 ~~~swift
-#import "DJIGeoDemoViewController.h"
-#import "DJIMapViewController.h"
-#import <DJISDK/DJISDK.h>
-#import "DemoUtility.h"
-#import "DJIScrollView.h"
+import Foundation
+import MapKit
+import DJISDK
 
-@interface DJIGeoDemoViewController ()
+class GeoDemoViewController : UIViewController, UIPickerViewDelegate, UIPickerViewDataSource {
 
-@property (weak, nonatomic) IBOutlet MKMapView *mapView;
-@property (weak, nonatomic) IBOutlet UIButton *loginBtn;
-@property (weak, nonatomic) IBOutlet UIButton *logoutBtn;
-@property (weak, nonatomic) IBOutlet UILabel *loginStateLabel;
-@property (weak, nonatomic) IBOutlet UIButton *unlockBtn;
-@property (weak, nonatomic) IBOutlet UILabel *flyZoneStatusLabel;
-@property (weak, nonatomic) IBOutlet UITextView *flyZoneDataTextView;
-@property (weak, nonatomic) IBOutlet UIButton *getUnlockButton;
-@property (weak, nonatomic) IBOutlet UIButton *enableGEOButton;
+    @IBOutlet weak var mapView: MKMapView!
+    @IBOutlet weak var loginBtn: UIButton!
+    @IBOutlet weak var logoutBtn: UIButton!
+    @IBOutlet weak var loginStateLabel: UILabel!
+    @IBOutlet weak var unlockBtn: UIButton!
+    @IBOutlet weak var flyZoneStatusLabel: UILabel!
+    @IBOutlet weak var getUnlockButton: UIButton!
+    @IBOutlet weak var pickerView: UIPickerView!
+    @IBOutlet weak var pickerContainerView: UIView!
+    @IBOutlet weak var customUnlockButton: UIButton!
+    @IBOutlet weak var showFlyZoneMessageTableView: UITableView!
 
-@property (nonatomic, strong) DJIMapViewController* djiMapViewController;
-@property (nonatomic, strong) NSTimer* updateLoginStateTimer;
+    var mapController: MapController?
+    var updateLoginStateTimer : Timer?
 
-@end
+    ...
+}
 ~~~
 
-In the code above, we also create a **DJIMapViewController** property `djiMapViewController` and a **NSTimer** property `updateLoginStateTimer` to update the `loginStateLabel`'s text content.
+In the code above, we also create a **MapController** property `mapController` and a **Timer?** property `updateLoginStateTimer` to update the `loginStateLabel`'s text content.
 
 Next, let's implement the `onLoginButtonClicked:` and `onLogoutButtonClicked:` IBAction methods as shown below:
 
 ~~~swift
-- (IBAction)onLoginButtonClicked:(id)sender
-{
-    [[DJISDKManager flyZoneManager] logIntoDJIUserAccountWithCompletion:^(DJIUserAccountStatus status, NSError * _Nullable error) {
-        if (error) {
-            ShowResult([NSString stringWithFormat:@"GEO Login Error: %@", error.description]);
-            
-        } else {
-            ShowResult(@"GEO Login Success");
+    //MARK: IBAction Methods
+    @IBAction func onLoginButtonClicked(_ sender: Any) {
+        DJISDKManager.userAccountManager().logIntoDJIUserAccount(withAuthorizationRequired: true) { (_:DJIUserAccountState, error:Error?) in
+            if let error = error {
+                DJIGeoSample.showAlertWith(result: "GEO Login Error: \(error.localizedDescription)")
+            } else {
+                DJIGeoSample.showAlertWith(result: "GEO Login Success")
+            }
         }
-    }];
-}
-
-- (IBAction)onLogoutButtonClicked:(id)sender {
-    
-    [[DJISDKManager flyZoneManager] logOutOfDJIUserAccountWithCompletion:^(NSError * _Nullable error) {
-        if (error) {
-            ShowResult(@"Login out error:%@", error.description);
-        } else {
-            ShowResult(@"Login out success");
-        }
-    }];
-}
-~~~
-
-Here, we invoke the `logIntoDJIUserAccountWithCompletion:` method of DJIFlyZoneManager to present a login view controller for users to login their DJI account. Next, we invoke the `logOutOfDJIUserAccountWithCompletion:` method of DJIFlyZoneManager to logout users's DJI account.
-
-Lastly, in order to update the `loginStateLabel` with the user account status, we may need to init the `updateLoginStateTimer` in the `viewWillAppear:` method as shown below:
-
-~~~swift
-- (void)viewWillAppear:(BOOL)animated
-{
-   [super viewWillAppear:animated];
-
-   self.updateLoginStateTimer = [NSTimer scheduledTimerWithTimeInterval:4.0f target:self selector:@selector(onUpdateLoginState) userInfo:nil repeats:YES];
-    
-}
-
--(void) viewWillDisappear:(BOOL)animated
-{
-    [super viewWillDisappear:animated];
-    
-     if (self.updateLoginStateTimer){
-        self.updateLoginStateTimer = nil;
-     }
-}
- 
-- (void)onUpdateLoginState
-{
-    DJIUserAccountStatus state = [[DJISDKManager flyZoneManager] getUserAccountStatus];
-    NSString* stateString = @"DJIUserAccountStatusUnknown";
-    
-    switch (state) {
-        case DJIUserAccountStatusNotLoggedIn:
-            stateString = @"DJIUserAccountStatusNotLoggin";
-            break;
-        case DJIUserAccountStatusNotAuthorized:
-            stateString = @"DJIUserAccountStatusNotVerified";
-            break;
-        case DJIUserAccountStatusAuthorized:
-            stateString = @"DJIUserAccountStatusSuccessful";
-            break;
-        case DJIUserAccountStatusTokenOutOfDate:
-            stateString = @"DJIUserAccountStatusTokenOutOfDate";
-            break;
-        default:
-            break;
     }
     
-    [self.loginStateLabel setText:[NSString stringWithFormat:@"%@", stateString]];
-}
+    @IBAction func onLogoutButtonClicked(_ sender: Any) {
+        DJISDKManager.userAccountManager().logOutOfDJIUserAccount { (error:Error?) in
+            if let error = error {
+                DJIGeoSample.showAlertWith(result: "Logout error: \(error.localizedDescription)")
+            } else {
+                DJIGeoSample.showAlertWith(result: "Logout success")
+            }
+        }
+    }
+~~~
+
+Here, we invoke the `logIntoDJIUserAccountWithCompletion:` method of DJIFlyZoneManager to present a login view controller for users to login to their DJI account. Next, we invoke the `logOutOfDJIUserAccountWithCompletion:` method of DJIFlyZoneManager to logout from a user's DJI account.
+
+Lastly, in order to update the `loginStateLabel` with the user account status, we may need to initialize the `updateLoginStateTimer` in the `viewWillAppear:` method as shown below:
+
+~~~swift
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+
+        self.updateLoginStateTimer = Timer.scheduledTimer(timeInterval: 0.4,
+                                                          target: self,
+                                                          selector: #selector(onUpdateLoginState),
+                                                          userInfo: nil,
+                                                          repeats: true)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        
+        self.updateLoginStateTimer = nil
+    }
+
+    @objc func onUpdateLoginState() {
+        let state = DJISDKManager.userAccountManager().userAccountState
+        var stateString = "DJIUserAccountStatusUnknown"
+        
+        switch state {
+        case .notLoggedIn:
+            stateString = "DJIUserAccountStatusNotLoggedIn"
+        case .notAuthorized:
+            stateString = "DJIUserAccountStatusNotVerified"
+        case .authorized:
+            stateString = "DJIUserAccountStatusSuccessful"
+        case .tokenOutOfDate:
+            stateString = "DJIUserAccountStatusNotLoggedIn"
+        case .unknown:
+            fallthrough
+        @unknown default:
+            stateString = "DJIUserAccountStatusUnknown"
+        }
+
+        self.loginStateLabel.text = stateString
+    }
 ~~~
 
 In the code above, we implement the following features:
@@ -716,77 +667,73 @@ Now let's implement the start and stop simulator buttons' IBAction methods as sh
 
 }
 
-- (IBAction)onStartSimulatorButtonClicked:(id)sender {
-    
-    DJIFlightController* flightController = [DemoUtility fetchFlightController];
-    if (!flightController) {
-        return;
+    override func viewDidLoad() {
+        self.title = "DJI GEO Demo"
+        self.pickerContainerView.isHidden = true
+        
+        guard let aircraft = fetchAircraft() else { return }
+
+        aircraft.flightController?.delegate = self
+        DJISDKManager.flyZoneManager()?.delegate = self
+        self.mapController = MapController(map: self.mapView)
     }
-    
-    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"" message:@"Input coordinate" preferredStyle:UIAlertControllerStyleAlert];
-    
-    [alertController addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
-        textField.placeholder = @"latitude";
-    }];
-    
-    [alertController addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
-        textField.placeholder = @"longitude";
-    }];
-    
-    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil];
-    UIAlertAction *startAction = [UIAlertAction actionWithTitle:@"Start" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-        
-        UITextField* latTextField = alertController.textFields[0];
-        UITextField* lngTextField = alertController.textFields[1];
-        
-        float latitude = [latTextField.text floatValue];
-        float longitude = [lngTextField.text floatValue];
-        
-        if (latitude && longitude) {
-            CLLocationCoordinate2D location = CLLocationCoordinate2DMake(latitude, longitude);
-            WeakRef(target);
-            [flightController.simulator startWithLocation:location updateFrequency:20 GPSSatellitesNumber:10 withCompletion:^(NSError * _Nullable error) {
-                WeakReturn(target);
-                if (error) {
-                    ShowResult(@"Start simulator error:%@", error.description);
+
+    @IBAction func onStartSimulatorButtonClicked(_ sender: Any) {
+        guard let flightController = DJIGeoSample.fetchFlightController() else { return }
+
+        let alertController = UIAlertController(title: "", message: "Input coordinate", preferredStyle: .alert)
+        alertController.addTextField { (textField:UITextField) in
+            textField.placeholder = "latitude"
+        }
+        alertController.addTextField { (textField:UITextField) in
+            textField.placeholder = "longitude"
+        }
+
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+
+        let startAction = UIAlertAction(title: "Start", style: .default) { (action:UIAlertAction) in
+            guard let latitudeString = alertController.textFields?[0].text else { return }
+            guard let longitudeString = alertController.textFields?[1].text else { return }
+            guard let latitude = Double(latitudeString) else { return }
+            guard let longitude = Double(longitudeString) else { return }
+
+            let location = CLLocationCoordinate2DMake(latitude, longitude)
+            
+            flightController.simulator?.start(withLocation: location,
+                                              updateFrequency: 20,
+                                              gpsSatellitesNumber: 10,
+                                              withCompletion: { [weak self] (error:Error?) in
+                if let error = error {
+                    DJIGeoSample.showAlertWith(result: "Start simulator error: \(error.localizedDescription)")
                 } else {
-                    ShowResult(@"Start simulator success");
-                    [target.djiMapViewController refreshMapViewRegion];
+                    DJIGeoSample.showAlertWith(result: "Start simulator success")
+                    self?.mapController?.refreshMapViewRegion()
+                    self?.mapController?.aircraftAnnotation = nil
                 }
-            }];
+            })
         }
-    }];
-    
-    [alertController addAction:cancelAction];
-    [alertController addAction:startAction];
-    
-    [self presentViewController:alertController animated:YES completion:nil];
 
-}
-
-- (IBAction)onStopSimulatorButtonClicked:(id)sender {
-    
-    DJIFlightController* flightController = [DemoUtility fetchFlightController];
-    if (!flightController) {
-        return;
+        alertController.addAction(cancelAction)
+        alertController.addAction(startAction)
+        self.present(alertController, animated: true, completion: nil)
     }
-    
-    WeakRef(target);
-    [flightController.simulator stopWithCompletion:^(NSError * _Nullable error) {
-        WeakReturn(target);
-        if (error) {
-            ShowResult(@"Stop simulator error:%@", error.description);
-        }else
-        {
-            ShowResult(@"Stop simulator success");
-        }
-    }];
-}
+
+    @IBAction func onStopSimulatorButtonClicked(_ sender: Any) {
+        guard let flightController = DJIGeoSample.fetchFlightController() else { return }
+        
+        flightController.simulator?.stop(completion: { (error:Error?) in
+            if let error = error {
+                DJIGeoSample.showAlertWith(result: "Stop simulator error:\(error.localizedDescription)")
+            } else {
+                DJIGeoSample.showAlertWith(result: "Stop simulator success")
+            }
+        })
+    }
 ~~~
 
 In the code above, we implement the following features:
 
-1. In the `onStartSimulatorButtonClicked:` method, we firstly fetch the DJIFlightController object and assign it to the `flightController` variable. Next, create a UIAlertController with the message of "Input Coordinate" and the style of "UIAlertControllerStyleAlert". Moreover, add two textFields and set their placeholder content as "latitude" and "longitude". We will use these two textFields to enter the simulated **latitude** and **longitude** data.
+1. In the `onStartSimulatorButtonClicked:` method, we firstly fetch the DJIFlightController object and assign it to the `flightController` variable. Next, create a UIAlertController with the message of "Input Coordinate" and the style of "UIAlertController.Style.alert". Moreover, add two textFields and set their placeholder content as "latitude" and "longitude". We will use these two textFields to enter the simulated **latitude** and **longitude** data.
 
 2. Then we implement the UIAlertAction handler of `startAction` and invoke the `startSimulatorWithLocation:updateFrequency:GPSSatellitesNumber:withCompletion:` method of DJISimulator to start the simulator by passing the `location` variable, which is made from the two textFields's content, and **20** as frequency, **10** as GPS Satellites number. If starting simulator successfully without error, invoke the `refreshMapViewRegion` method of **DJIMapViewController** to update the map view's region and zoom into the new coordinate we just set. Lastly, add the two UIAlertAction variables and present the UIAlertController.
 
@@ -798,7 +745,7 @@ In the code above, we implement the following features:
 
 If you want to unlock a fly zone, you may need to get the fly zone's ID first. Now let's update the fly zone info and update the aircraft's location when simulated coordinate data changes.
 
-Implement the **DJIFlyZoneDelegate**, **DJIFlightControllerDelegate**, **UITableViewDelegate** and **UITableViewDataSource** protocols in the class extension part of DJIGeoDemoViewController and declare the `updateFlyZoneDataTimer`, `unlockFlyZoneIDs`, `showFlyZoneMessageTableView` and `flyZoneInfoView` properties as shown below:
+Implement the **DJIFlyZoneDelegate**, **DJIFlightControllerDelegate**, **UITableViewDelegate** and **UITableViewDataSource** protocols in GeoDemoViewController and declare the `updateFlyZoneDataTimer`, `unlockFlyZoneIDs`, `showFlyZoneMessageTableView` and `flyZoneInfoView` properties as shown below:
 
 ~~~swift
 
@@ -823,6 +770,33 @@ Implement the **DJIFlyZoneDelegate**, **DJIFlightControllerDelegate**, **UITable
 @property(nonatomic, strong) DJIScrollView *flyZoneInfoView;
 
 @end
+
+class GeoDemoViewController : UIViewController, DJIFlyZoneDelegate, DJIFlightControllerDelegate, UITableViewDelegate, UITableViewDataSource {
+    
+    @IBOutlet weak var mapView: MKMapView!
+    @IBOutlet weak var loginBtn: UIButton!
+    @IBOutlet weak var logoutBtn: UIButton!
+    @IBOutlet weak var loginStateLabel: UILabel!
+    @IBOutlet weak var unlockBtn: UIButton!
+    @IBOutlet weak var flyZoneStatusLabel: UILabel!
+    @IBOutlet weak var getUnlockButton: UIButton!
+    @IBOutlet weak var pickerView: UIPickerView!
+    @IBOutlet weak var pickerContainerView: UIView!
+    @IBOutlet weak var customUnlockButton: UIButton!
+    @IBOutlet weak var showFlyZoneMessageTableView: UITableView!
+
+    var mapController: MapController?
+    var updateLoginStateTimer : Timer?
+    var updateFlyZoneDataTimer : Timer?
+    var unlockFlyZoneIDs = [NSNumber]()
+    var unlockedFlyZones : [DJIFlyZoneInformation]?
+    var selectedFlyZone : DJIFlyZoneInformation?
+    var isUnlockEnable = false
+    var flyZoneView : DJIScrollView?
+
+    ...
+
+}
 ~~~
 
 Next, let's refactor the `viewDidLoad` method and implement the `initUI` method as shown below:
