@@ -749,28 +749,6 @@ Implement the **DJIFlyZoneDelegate**, **DJIFlightControllerDelegate**, **UITable
 
 ~~~swift
 
-@interface DJIGeoDemoViewController ()<DJIFlyZoneDelegate, DJIFlightControllerDelegate, UITableViewDelegate, UITableViewDataSource>
-
-@property (weak, nonatomic) IBOutlet MKMapView *mapView;
-@property (weak, nonatomic) IBOutlet UIButton *loginBtn;
-@property (weak, nonatomic) IBOutlet UIButton *logoutBtn;
-@property (weak, nonatomic) IBOutlet UILabel *loginStateLabel;
-@property (weak, nonatomic) IBOutlet UIButton *unlockBtn;
-@property (weak, nonatomic) IBOutlet UILabel *flyZoneStatusLabel;
-@property (weak, nonatomic) IBOutlet UITextView *flyZoneDataTextView;
-@property (weak, nonatomic) IBOutlet UIButton *getUnlockButton;
-@property (weak, nonatomic) IBOutlet UIButton *enableGEOButton;
-
-@property (nonatomic, strong) DJIMapViewController* djiMapViewController;
-@property (nonatomic, strong) NSTimer* updateLoginStateTimer;
-@property (nonatomic, strong) NSTimer* updateFlyZoneDataTimer;
-@property (nonatomic, strong) NSMutableArray<NSNumber *> * unlockFlyZoneIDs;
-@property (nonatomic, readwrite) BOOL isGEOSystemEnabled;
-@property (weak, nonatomic) IBOutlet UITableView *showFlyZoneMessageTableView;
-@property(nonatomic, strong) DJIScrollView *flyZoneInfoView;
-
-@end
-
 class GeoDemoViewController : UIViewController, DJIFlyZoneDelegate, DJIFlightControllerDelegate, UITableViewDelegate, UITableViewDataSource {
     
     @IBOutlet weak var mapView: MKMapView!
@@ -802,58 +780,67 @@ class GeoDemoViewController : UIViewController, DJIFlyZoneDelegate, DJIFlightCon
 Next, let's refactor the `viewDidLoad` method and implement the `initUI` method as shown below:
 
 ~~~swift
-- (void)viewDidLoad
-{
-    [super viewDidLoad];
-    
-    self.title = @"DJI GEO Demo";
 
-    DJIAircraft* aircraft = [DemoUtility fetchAircraft];
-    if (aircraft == nil) return;
-    
-    aircraft.flightController.delegate = self;
-    aircraft.flightController.simulator.delegate = self;
-    [[DJISDKManager flyZoneManager] setDelegate:self];
-    
-    [self initUI];
-}
+    override func viewDidLoad() {
+        super.viewDidLoad()//TODO: just added, test...
+        
+        //self.title = "DJI GEO Demo" //TODO: remove as it's included in initUI...
+        self.pickerContainerView.isHidden = true
+        
+        guard let aircraft = fetchAircraft() else { return }
 
-- (void)initUI
-{
-    self.title = @"DJI GEO Demo";
+        aircraft.flightController?.delegate = self
+        DJISDKManager.flyZoneManager()?.delegate = self
+        self.initUI()
+    }
 
-    self.djiMapViewController = [[DJIMapViewController alloc] initWithMap:self.mapView];
-    self.isGEOSystemEnabled = NO;
-    self.flyZoneInfoView = [DJIScrollView viewWithViewController:self];
-    self.flyZoneInfoView.hidden = YES;
-    [self.flyZoneInfoView setDefaultSize];
-}
+    func initUI() {
+        self.title = "DJI GEO Demo"
+        
+        self.mapController = MapController(map: self.mapView)
+        self.unlockedFlyZones = [DJIFlyZoneInformation]()
+        self.flyZoneView = DJIScrollView(parentViewController: self)
+        self.flyZoneView?.isHidden = true
+        self.flyZoneView?.setDefaultSize()
+    }
 ~~~
 
 In the code above, we set the `delegate` property of **DJIFlightController**, **DJIFlyZoneManager** and DJIFlightController's **simulator** to self and initialize the `isGEOSystemEnabled` and `flyZoneInfoView` properties. 
 
-In the `viewWillAppear:` method, let's add the following code at the bottom to update the fly zones in the aircraft's surrounding area and initialize the `updateFlyZoneDataTimer` property:
+Let's add the following code at the bottom of `viewWillAppear:` to update the fly zones in the aircraft's surrounding area and initialize the `updateFlyZoneDataTimer` property:
 
 ~~~swift    
-  self.updateFlyZoneDataTimer = [NSTimer scheduledTimerWithTimeInterval:4.0f target:self selector:@selector(onUpdateFlyZoneInfo) userInfo:nil repeats:YES];
-  
-  [self.djiMapViewController updateFlyZonesInSurroundingArea];
+    override func viewWillAppear(_ animated: Bool) {
+
+        ...
+
+        self.updateFlyZoneDataTimer = Timer.scheduledTimer(timeInterval: 0.4,
+                                                           target: self,
+                                                           selector: #selector(onUpdateFlyZone),
+                                                           userInfo: nil,
+                                                           repeats: true)
+        
+        self.mapController?.updateFlyZonesInSurroundingArea()
+    }
 ~~~
  
-Then in the `viewWillDisappear:` method, add the following code to set `updateFlyZoneDataTimer` to nil at the bottom:
+Then in the `viewWillDisappear:` method, set `updateFlyZoneDataTimer` to nil at the bottom:
 
 ~~~swift
-   if (self.updateFlyZoneDataTimer)
-        self.updateFlyZoneDataTimer = nil;
+    override func viewWillDisappear(_ animated: Bool) {
+
+        ...
+
+        self.updateFlyZoneDataTimer = nil
+    }
 ~~~
 
-Furthermore, implement the selector method of `onUpdateFlyZoneInfo` as shown below:
+Furthermore, implement the selector method of `onUpdateFlyZone` as shown below:
 
 ~~~swift
-- (void)onUpdateFlyZoneInfo
-{
-    [self.showFlyZoneMessageTableView reloadData];
-}
+    @objc func onUpdateFlyZone() {
+        self.showFlyZoneMessageTableView.reloadData()
+    }
 ~~~
 
 In the code above, we invoke the `reloadData` method of UITableView to update the fly zone info.
@@ -886,113 +873,130 @@ Moreover, let's implement the delegate methods of **DJIFlyZoneDelegate** and **D
     [self.flyZoneStatusLabel setText:flyZoneStatusString];
 }
 
-#pragma mark - DJIFlightControllerDelegate Method
-
-- (void)flightController:(DJIFlightController *)fc didUpdateState:(DJIFlightControllerState *)state
-{
-    if (CLLocationCoordinate2DIsValid(state.aircraftLocation.coordinate)) {
-        double heading = RADIAN(state.attitude.yaw);
-        [self.djiMapViewController updateAircraftLocation:state.aircraftLocation.coordinate withHeading:heading];
+    //MARK: - DJIFlyZoneDelegate Method
+    func flyZoneManager(_ manager: DJIFlyZoneManager, didUpdate state: DJIFlyZoneState) {
+        var flyZoneStatusString = "Unknown"
+        switch state {
+        case .clear:
+            flyZoneStatusString = "NoRestriction"
+        case .inWarningZone:
+            fallthrough
+        case .inWarningZoneWithHeightLimitation:
+            flyZoneStatusString = "AlreadyInWarningArea"
+        case .nearRestrictedZone:
+            flyZoneStatusString = "ApproachingRestrictedArea"
+        case .inRestrictedZone:
+            flyZoneStatusString = "AlreadyInRestrictedArea"
+        case .unknown:
+            fallthrough
+        @unknown default:
+            flyZoneStatusString = "Unknown"
+        }
+        self.flyZoneStatusLabel.text = flyZoneStatusString
     }
-}
+
+    //MARK: - DJIFlightControllerDelegate Method
+    func flightController(_ fc: DJIFlightController, didUpdate state: DJIFlightControllerState) {
+        guard let aircraftCoordinate = state.aircraftLocation?.coordinate else { return }
+        if CLLocationCoordinate2DIsValid(aircraftCoordinate) {
+            // Convert degrees to radians
+            let heading = Float(state.attitude.yaw * Double.pi / 180.0)
+            self.mapController?.updateAircraft(coordinate: aircraftCoordinate,
+                                               heading: heading)
+        }
+    }
 ~~~
 
 In the code above, we implement the following features:
 
-1. In the `flyZoneManager:didUpdateFlyZoneState:` delegate method,  we use a switch statement to check the **DJIFlyZoneState** enum value and update the `flyZoneStatusLabel` content.
-2. In the `flightController:didUpdateState:` delegate method, we get the updated aircraft location and heading data from the **DJIFlightControllerState** and invoke the `updateAircraftLocation:withHeading:` method of DJIMapViewController to update the aircraft's location and fly zone overlays on the map view.
+1. In the `flyZoneManager:didUpdateFlyZoneState:` delegate method, we use a switch statement to check the **DJIFlyZoneState** enum value and update the `flyZoneStatusLabel` content.
+2. In the `flightController:didUpdateState:` delegate method, we get the updated aircraft location and heading data from the **DJIFlightControllerState** and invoke the `updateAircraftLocation:withHeading:` method of MapController to update the aircraft's location and fly zone overlays on the map view.
 
 Lastly, let's implement the delegate methods of **UITableViewDelegate** and **UITableViewDataSource** as shown below:
 
 ~~~
-#pragma mark - UITableViewDelgete
-
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
-{
-    return self.djiMapViewController.flyZones.count;
-}
-
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    UITableViewCell* cell = [tableView dequeueReusableCellWithIdentifier:@"flyzone-id"];
-    if (cell == nil) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"flyzone-id"];
+    //MARK: - UITableViewDelgete
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return self.mapController?.flyZones.count ?? 0
     }
-    
-    DJIFlyZoneInformation* flyZoneInfo = self.djiMapViewController.flyZones[indexPath.row];
-    cell.textLabel.text = [NSString stringWithFormat:@"%lu:%@:%@", (unsigned long)flyZoneInfo.flyZoneID, @(flyZoneInfo.category), flyZoneInfo.name];
-    cell.textLabel.adjustsFontSizeToFitWidth = YES;
-    return cell;
-}
 
-- (NSString*)getFlyZoneCategoryString:(DJIFlyZoneCategory)category
-{
-    switch (category) {
-        case DJIFlyZoneCategoryWarning:
-            return @"Waring";
-        case DJIFlyZoneCategoryRestricted:
-            return @"Restricted";
-        case DJIFlyZoneCategoryAuthorization:
-            return @"Authorization";
-        case DJIFlyZoneCategoryEnhancedWarning:
-            return @"EnhancedWarning";
-        default:
-            break;
-    }
-    return @"Unknown";
-}
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let nullableCell = tableView.dequeueReusableCell(withIdentifier: "flyzone-id")
+        let cell = nullableCell ?? UITableViewCell(style: .subtitle, reuseIdentifier: "flyzone-id")
 
-
-- (NSString*)formatSubFlyZoneInformtionString:(NSArray<DJISubFlyZoneInformation *> *)subFlyZoneInformations
-{
-    NSMutableString *subInfoString = [NSMutableString string];
-    for (DJISubFlyZoneInformation* subInformation in subFlyZoneInformations) {
-        [subInfoString appendString:@"-----------------\n"];
-        [subInfoString appendString:[NSString stringWithFormat:@"SubAreaID:%@\n", @(subInformation.areaID)]];
-        [subInfoString appendString:[NSString stringWithFormat:@"Graphic:%@\n", DJISubFlyZoneShapeCylinder == subInformation.shape ? @"Circle": @"Polygon"]];
-        [subInfoString appendString:[NSString stringWithFormat:@"MaximumFlightHeight:%ld\n", (long)subInformation.maximumFlightHeight]];
-        [subInfoString appendString:[NSString stringWithFormat:@"Radius:%f\n", subInformation.radius]];
-        [subInfoString appendString:[NSString stringWithFormat:@"Coordinate:(%f,%f)\n", subInformation.center.latitude, subInformation.center.longitude]];
-        for (NSValue* point in subInformation.vertices) {
-            CLLocationCoordinate2D coordinate = [point MKCoordinateValue];
-            [subInfoString appendString:[NSString stringWithFormat:@"     (%f,%f)\n", coordinate.latitude, coordinate.longitude]];
+        if let flyZone = self.mapController?.flyZones[indexPath.row] {
+            cell.textLabel?.text = "\(flyZone.flyZoneID):\(self.getFlyZoneStringFor(flyZone.category)):\(flyZone.name)"
+            cell.textLabel?.adjustsFontSizeToFitWidth = true
         }
-        [subInfoString appendString:@"-----------------\n"];
+        return cell
     }
-    return subInfoString;
-}
 
-- (NSString*)formatFlyZoneInformtionString:(DJIFlyZoneInformation*)information
-{
-    NSMutableString* infoString = [[NSMutableString alloc] init];
-    if (information) {
-        [infoString appendString:[NSString stringWithFormat:@"ID:%lu\n", (unsigned long)information.flyZoneID]];
-        [infoString appendString:[NSString stringWithFormat:@"Name:%@\n", information.name]];
-        [infoString appendString:[NSString stringWithFormat:@"Coordinate:(%f,%f)\n", information.center.latitude, information.center.longitude]];
-        [infoString appendString:[NSString stringWithFormat:@"Radius:%f\n", information.radius]];
-        [infoString appendString:[NSString stringWithFormat:@"StartTime:%@, EndTime:%@\n", information.startTime, information.endTime]];
-        [infoString appendString:[NSString stringWithFormat:@"unlockStartTime:%@, unlockEndTime:%@\n", information.unlockStartTime, information.unlockEndTime]];
-        [infoString appendString:[NSString stringWithFormat:@"GEOZoneType:%d\n", information.type]];
-        [infoString appendString:[NSString stringWithFormat:@"FlyZoneType:%@\n", information.shape == DJIFlyZoneShapeCylinder ? @"Cylinder" : @"Cone"]];
-        [infoString appendString:[NSString stringWithFormat:@"FlyZoneCategory:%@\n",[self getFlyZoneCategoryString:information.category]]];
+    func getFlyZoneStringFor(_ category: DJIFlyZoneCategory) -> String {
+        switch category {
+        case .warning:
+            return "Warning"
+        case .restricted:
+            return "Restricted"
+        case .authorization:
+            return "Authorization"
+        case .enhancedWarning:
+            return "EnhancedWarning"
+        case .unknown:
+            fallthrough
+        @unknown default:
+            return "Unknown"
+        }
+    }
+
+
+    func stringFor(_ subFlyZones: [DJISubFlyZoneInformation]?) -> String? {
+        guard let subFlyZones = subFlyZones else { return nil }
+        var subInfoString = ""
+        for subZone in subFlyZones {
+            subInfoString.append("-----------------\n")
+            subInfoString.append("SubAreaID:\(subZone.areaID)")
+            subInfoString.append("Graphic:\( subZone.shape == .cylinder ? "Circle": "Polygon")")
+            subInfoString.append("MaximumFlightHeight:\(subZone.maximumFlightHeight)")
+            subInfoString.append("Radius:\(subZone.radius)")
+            subInfoString.append("Coordinate:\(subZone.center.latitude),\(subZone.center.longitude)")
+            for point in subZone.vertices {
+                if let coordinate = point as? CLLocationCoordinate2D {
+                    subInfoString.append("     \(coordinate.latitude),\(coordinate.longitude)\n")
+                }
+            }
+            subInfoString.append("-----------------\n")
+        }
+        return subInfoString;
+    }
+
+    func stringFor(_ flyZone:DJIFlyZoneInformation) -> String {
+        var infoString = ""
+        infoString.append("ID:\(flyZone.flyZoneID)n")
+        infoString.append("Name:\(flyZone.name)\n")
+        infoString.append("Coordinate:(\(flyZone.center.latitude),\(flyZone.center.longitude)\n")
+        infoString.append("Radius:\(flyZone.radius)\n")
+        infoString.append("StartTime:\(flyZone.startTime), EndTime:\(flyZone.endTime)\n")
+        infoString.append("unlockStartTime:\(flyZone.unlockStartTime), unlockEndTime:\(flyZone.unlockEndTime)\n")
+        infoString.append("GEOZoneType:\(flyZone.type)")
+        infoString.append("FlyZoneType:\(flyZone.shape == .cylinder ? "Cylinder" : "Cone")")
+        infoString.append("FlyZoneCategory:\(self.getFlyZoneStringFor(flyZone.category))\n")
+
+        if flyZone.subFlyZones?.count ?? -1 > 0 {
+            if let subInfoString = self.stringFor(flyZone.subFlyZones) {
+                infoString.append(subInfoString)
+            }
+        }
         
-        if (information.subFlyZones.count > 0) {
-            NSString* subInfoString = [self formatSubFlyZoneInformtionString:information.subFlyZones];
-            [infoString appendString:subInfoString];
+        return infoString
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        self.flyZoneView?.isHidden = false
+        self.flyZoneView?.show()
+        if let selectedFlyZone = self.mapController?.flyZones[indexPath.row] {
+            self.flyZoneView?.write(status:self.stringFor(selectedFlyZone))
         }
     }
-    NSString *result = [NSString stringWithString:infoString];
-    NSLog(@"%@", result);
-    return result;
-}
-
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    self.flyZoneInfoView.hidden = NO;
-    [self.flyZoneInfoView show];
-    DJIFlyZoneInformation* information = self.djiMapViewController.flyZones[indexPath.row];
-    [self.flyZoneInfoView writeStatus:[self formatFlyZoneInformtionString:information]];
-}
 ~~~
 
 In the code above, we implement the following features:
@@ -1003,103 +1007,87 @@ In the code above, we implement the following features:
 
 #### Unlock Fly Zones
 
-Once you finish the above steps, let's implement the unlock fly zone feature. Create the `unlockFlyZoneIDs` property in the class extension part as shown below:
+Once you finish the above steps, let's implement the unlock fly zone feature. Create the `unlockFlyZoneIDs` property as shown below:
 
 ~~~swift
-@property (nonatomic, strong) NSMutableArray<NSNumber *> * unlockFlyZoneIDs;
-~~~
-
-Then add the following code to initialize the property in the `initUI` method as shown below:
-
-~~~swift
-self.unlockFlyZoneIDs = [[NSMutableArray alloc] init];
+    var unlockFlyZoneIDs = [NSNumber]()
 ~~~
 
 Now let's implement the `onUnlockButtonClicked` and `onGetUnlockButtonClicked` IBAction methods and the `showFlyZoneIDInputView` method as shown below:
 
 ~~~swift
-- (IBAction)onUnlockButtonClicked:(id)sender
-{
-    [self showFlyZoneIDInputView];
-}
+    @IBAction func onUnlockButtonClicked(_ sender: Any) {
+        self.showFlyZoneIDInputView()
+    }
 
-- (void)showFlyZoneIDInputView
-{
-    WeakRef(target);
-    
-    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"" message:@"Input ID" preferredStyle:UIAlertControllerStyleAlert];
-    
-    [alertController addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
-        textField.placeholder = @"Input";
-    }];
-    
-    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil];
-    UIAlertAction *continueAction = [UIAlertAction actionWithTitle:@"Continue" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-        
-        UITextField* textField = alertController.textFields[0];
-        NSString* content = textField.text;
-        if (content) {
-            int flyZoneID = [content intValue];
-            [target.unlockFlyZoneIDs addObject:@(flyZoneID)];
+    func showFlyZoneIDInputView() {
+        let alertController = UIAlertController(title: "", message: "Input ID", preferredStyle: .alert)
+        alertController.addTextField { (textField:UITextField) in
+            textField.placeholder = "Input"
         }
-        [target showFlyZoneIDInputView];
-    }];
-    
-    UIAlertAction *unlockAction = [UIAlertAction actionWithTitle:@"Unlock" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-        UITextField* textField = alertController.textFields[0];
-        NSString* content = textField.text;
-        if (content) {
-            int flyZoneID = [content intValue];
-            [target.unlockFlyZoneIDs addObject:@(flyZoneID)];
-        }
-        [[DJISDKManager flyZoneManager] unlockFlyZones:target.unlockFlyZoneIDs withCompletion:^(NSError * _Nullable error) {
-            
-            [target.unlockFlyZoneIDs removeAllObjects];
-
-            if (error) {
-                ShowResult(@"unlock fly zones failed%@", error.description);
-            } else {
-                                
-                [[DJISDKManager flyZoneManager] getUnlockedFlyZonesWithCompletion:^(NSArray<DJIFlyZoneInformation *> * _Nullable infos, NSError * _Nullable error) {
-                    if (error) {
-                        ShowResult(@"get unlocked fly zone failed:%@", error.description);
-                    } else {
-                        NSString* resultMessage = [NSString stringWithFormat:@"unlock zone: %tu ", [infos count]];
-                        for (int i = 0; i < infos.count; ++i) {
-                            DJIFlyZoneInformation* info = [infos objectAtIndex:i];
-                            resultMessage = [resultMessage stringByAppendingString:[NSString stringWithFormat:@"\n ID:%lu Name:%@ Begin:%@ End:%@\n", (unsigned long)info.flyZoneID, info.name, info.unlockStartTime, info.unlockEndTime]];
-                        }
-                        ShowResult(resultMessage);
-                    }
-                }];
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+        let continueAction = UIAlertAction(title: "Continue", style: .default) { [weak self] (action:UIAlertAction) in
+            if let flyZoneIdText = alertController.textFields?[0].text  {
+                let flyZoneID = NSNumber(nonretainedObject: Int(flyZoneIdText))
+                self?.unlockFlyZoneIDs.append(flyZoneID)
             }
-        }];
-    }];
-    
-    [alertController addAction:cancelAction];
-    [alertController addAction:continueAction];
-    [alertController addAction:unlockAction];
-    
-    [self presentViewController:alertController animated:YES completion:nil];
-    
-}
-
-- (IBAction)onGetUnlockButtonClicked:(id)sender
-{
-    [[DJISDKManager flyZoneManager] getUnlockedFlyZonesWithCompletion:^(NSArray<DJIFlyZoneInformation *> * _Nullable infos, NSError * _Nullable error) {
-        if (error) {
-            ShowResult(@"Get Unlock Error:%@", error.description);
-        } else {
-            NSString* unlockInfo = [NSString stringWithFormat:@"unlock zone count = %lu\n", infos.count];
-            
-            for (DJIFlyZoneInformation* info in infos) {
-                unlockInfo = [unlockInfo stringByAppendingString:[NSString stringWithFormat:@"ID:%lu Name:%@ Begin:%@ end:%@\n", (unsigned long)info.flyZoneID, info.name, info.unlockStartTime, info.unlockEndTime]];
-            };
-            ShowResult(@"%@", unlockInfo);
+            self?.showFlyZoneIDInputView()
         }
-    }];
-    
-}
+
+        let unlockAction = UIAlertAction(title: "Unlock", style: .default) { [weak self] (action:UIAlertAction) in
+            guard let self = self else { return }
+            if let content = alertController.textFields?[0].text {
+                if let idToUnlock = Int(content) {
+                    self.unlockFlyZoneIDs.append(NSNumber(value: idToUnlock))
+                }
+            }
+            
+            DJISDKManager.flyZoneManager()?.unlockFlyZones(self.unlockFlyZoneIDs, withCompletion: { (error:Error?) in
+                self.unlockFlyZoneIDs.removeAll()
+                
+                if let error = error {
+                    DJIGeoSample.showAlertWith(result: "unlock fly zones failed: \(error.localizedDescription)")
+                    return
+                }
+                DJISDKManager.flyZoneManager()?.getUnlockedFlyZonesForAircraft(completion: { (infos:[DJIFlyZoneInformation]?, error:Error?) in
+                    if let error = error {
+                        DJIGeoSample.showAlertWith(result: "get unlocked fly zones failed: \(error.localizedDescription)")
+                        return
+                    }
+                    guard let infos = infos else { fatalError() } //Should return at least an empty array if no error
+                    var resultMessage = "Unlock Zones: \(infos.count)"
+                    for info in infos {
+                        resultMessage = resultMessage + "\n ID:\(info.flyZoneID) Name:\(info.name) Begin:\(info.unlockStartTime) End:\(info.unlockEndTime)\n"
+                    }
+                    DJIGeoSample.showAlertWith(result: resultMessage)
+                })
+
+            })
+        }
+
+        alertController.addAction(cancelAction)
+        alertController.addAction(continueAction)
+        alertController.addAction(unlockAction)
+        self.present(alertController, animated: true, completion: nil)
+    }
+
+    @IBAction func onGetUnlockButtonClicked(_ sender: Any) {
+        DJISDKManager.flyZoneManager()?.getUnlockedFlyZonesForAircraft(completion: { [weak self] (infos:[DJIFlyZoneInformation]?, error:Error?) in
+            if let error = error {
+                DJIGeoSample.showAlertWith(result: "Get Unlock Error: \(error.localizedDescription)")
+            } else {
+                guard let infos = infos else { fatalError() }
+                guard let self = self else { return }
+                var unlockInfo = "unlock zone count = \(infos.count) \n"
+                self.unlockedFlyZones?.removeAll()
+                self.unlockedFlyZones?.append(contentsOf: infos)
+                for info in infos {
+                    unlockInfo = unlockInfo + "ID:\(info.flyZoneID) Name:\(info.name) Begin:\(info.unlockStartTime) end:\(info.unlockEndTime)\n"
+                }
+                DJIGeoSample.showAlertWith(result: unlockInfo)
+            }
+        })
+    }
 ~~~
 
 In the code above, we create a UIAlertController with the message of "Input ID", and add a textField with the placeholder of "Input". Then create three UIAlertAction objects for **cancel**, **continue**, and **unlock** actions:
@@ -1137,17 +1125,12 @@ In the code above, we create IBOutlet properties to link the UI elements in the 
 Once you finished the steps above, let's continue to implement the following methods:
 
 ~~~swift
-- (void)viewDidLoad
-{
-    ...
-    [self.pickerContainerView setHidden:YES];
-}
+    override func viewDidLoad() {
+        
+        ...
 
-- (void)initUI
-{
-    ...
-    self.unlockedFlyZoneInfos = [[NSMutableArray alloc] init];
-}
+        self.pickerContainerView.isHidden = true
+    }
 ~~~
 
 Here, we hide the `pickerContainerView` in the `viewDidLoad` method first and initialize the `unlockedFlyZoneInfos` property in the `initUI` method.
@@ -1164,84 +1147,65 @@ if ([target.unlockedFlyZoneInfos count] > 0) {
 Lastly, implement the following methods:
 
 ~~~swift
-- (IBAction)enableUnlocking:(id)sender {
-    
-    [self.pickerContainerView setHidden:NO];
-    [self.pickerView reloadAllComponents];
-}
+    @IBAction func enableUnlocking(_ sender: Any) {
+        self.pickerContainerView.isHidden = false
+        self.pickerView.reloadAllComponents()
+    }
 
-- (IBAction)conformButtonAction:(id)sender {
-
-    if (self.selectedFlyZoneInfo) {
-        [self.selectedFlyZoneInfo setUnlockingEnabled:self.isUnlockEnable withCompletion:^(NSError * _Nullable error) {
-            
-            if (error) {
-                ShowResult(@"Set unlocking enabled failed %@", error.description);
-            }else
-            {
-                ShowResult(@"Set unlocking enabled success");
+    @IBAction func setSelectedUnlockEnabled(_ sender: Any) {
+        guard let selectedInfo = self.selectedFlyZone else { return }
+        
+        selectedInfo.setUnlockingEnabled(self.isUnlockEnable) { (error:Error?) in
+            if let error = error {
+                DJIGeoSample.showAlertWith(result: "Set unlocking enabled failed: \(error.localizedDescription)")
+            } else {
+                DJIGeoSample.showAlertWith(result: "Set unlocking enabled success")
             }
-        }];
-    }
-    
-}
-
-- (IBAction)cancelButtonAction:(id)sender {
-    
-    [self.pickerContainerView setHidden:YES];
-}
-
-#pragma mark - UIPickerViewDataSource
-
-- (NSInteger)numberOfComponentsInPickerView:(UIPickerView *)pickerView {
-    return 2;
-}
-
-- (NSInteger)pickerView:(UIPickerView *)pickerView numberOfRowsInComponent:(NSInteger)component {
-    
-    NSInteger rowNum = 0;
-    
-    if (component == 0) {
-        rowNum = [self.unlockedFlyZoneInfos count];
-    } else if (component == 1){
-        rowNum = 2;
-    }
-    return rowNum;
-}
-
-- (NSString *)pickerView:(UIPickerView *)pickerView titleForRow:(NSInteger)row forComponent:(NSInteger)component {
-    
-    NSString *title = @"";
-    
-    if (component == 0) {
-      
-        DJIFlyZoneInformation *infoObject = [self.unlockedFlyZoneInfos objectAtIndex:row];
-        title = [NSString stringWithFormat:@"%lu", (unsigned long)infoObject.flyZoneID];
-        
-    } else if (component == 1) {
-        
-        if (row == 0) {
-            title = @"YES";
-        } else {
-            title = @"NO";
         }
     }
-    
-    return title;
-}
 
-#pragma mark - UIPickerViewDelegate
-- (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
-    
-    if (component == 0) {
-        if ([self.unlockedFlyZoneInfos count] > row) {
-            self.selectedFlyZoneInfo = [self.unlockedFlyZoneInfos objectAtIndex:row];
-        }
-    } else if (component == 1) {
-        self.isUnlockEnable = [pickerView selectedRowInComponent:1] == 0 ? YES: NO;
+    @IBAction func cancelButtonAction(_ sender: Any) {
+        self.pickerContainerView.isHidden = true
     }
-}
+
+    //MARK: - UIPickerViewDataSource
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        return 2
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        if component == 0 {
+            return self.unlockedFlyZones.count
+        } else if component == 1 {
+            return 2
+        }
+        return 0
+    }
+
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        var title = ""
+        
+        if component == 0 {
+            title = "\(self.unlockedFlyZones[row].flyZoneID)"
+        } else if component == 1 {
+            title = row == 0 ? "YES" : "NO"
+        }
+        return title
+    }
+
+    //MARK: - UIPickerViewDelegate
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        if component == 0 {
+            if self.unlockedFlyZones.count > row {
+                self.selectedFlyZone = self.unlockedFlyZones[row]
+            }
+        } else if component == 1 {
+            self.isUnlockEnable = pickerView.selectedRow(inComponent: 1) == 0
+        }
+    }
 ~~~
+
+//TODO: resume here!
 
 In the code above, we implement the following feature:
 
