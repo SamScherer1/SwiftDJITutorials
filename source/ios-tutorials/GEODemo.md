@@ -659,14 +659,6 @@ Moreover, you can also use the **DJISimulator** to control the aircraft in a sim
 Now let's implement the start and stop simulator buttons' IBAction methods as shown below:
 
 ~~~swift
-- (void)viewDidLoad
-{
-    [super viewDidLoad];
-    
-    self.djiMapViewController = [[DJIMapViewController alloc] initWithMap:self.mapView];
-
-}
-
     override func viewDidLoad() {
         self.title = "DJI GEO Demo"
         self.pickerContainerView.isHidden = true
@@ -848,31 +840,6 @@ In the code above, we invoke the `reloadData` method of UITableView to update th
 Moreover, let's implement the delegate methods of **DJIFlyZoneDelegate** and **DJIFlightControllerDelegate** as shown below:
 
 ~~~swift
-#pragma mark - DJIFlyZoneDelegate Method
-
--(void)flyZoneManager:(DJIFlyZoneManager *)manager didUpdateFlyZoneState:(DJIFlyZoneState)state
-{
-    NSString* flyZoneStatusString = @"Unknown";
-    switch (status) {
-        case DJIFlyZoneStateClear:
-            flyZoneStatusString = @"NoRestriction";
-            break;
-        case DJIFlyZoneStateInWarningZone:
-            flyZoneStatusString = @"AlreadyInWarningArea";
-            break;
-        case DJIFlyZoneStateNearRestrictedZone:
-            flyZoneStatusString = @"ApproachingRestrictedArea";
-            break;
-        case DJIFlyZoneStateInRestrictedZone:
-            flyZoneStatusString = @"AlreadyInRestrictedArea";
-            break;
-        default:
-            break;
-    }
-    
-    [self.flyZoneStatusLabel setText:flyZoneStatusString];
-}
-
     //MARK: - DJIFlyZoneDelegate Method
     func flyZoneManager(_ manager: DJIFlyZoneManager, didUpdate state: DJIFlyZoneState) {
         var flyZoneStatusString = "Unknown"
@@ -1205,15 +1172,13 @@ Lastly, implement the following methods:
     }
 ~~~
 
-//TODO: resume here!
-
 In the code above, we implement the following feature:
 
-1. In the `enableUnlocking:` method, show the `pickerContainerView` and reload the components of the `pickerView` when the button is pressed.
+1. In the `enableUnlocking(_ sender:)` method, show the `pickerContainerView` and reload the components of the `pickerView` when the button is pressed.
 
-2. In the `conformButtonAction` method, invoke the `setUnlockingEnabled:withCompletion:` method of `DJIFlyZoneInformation` to enable the unlocked fly zone.
+2. In the `setSelectedUnlockEnabled(_ sender:)` method, invoke the `setUnlockingEnabled:withCompletion:` method of `DJIFlyZoneInformation` to enable the unlocked fly zone.
 
-3. In the `cancelButtonAction:` method, hide the `pickerContainerView` when the cancel button is pressed.
+3. In the `cancelButtonAction(_ sender:)` method, hide the `pickerContainerView` when the cancel button is pressed.
 
 4. Implement the delegate methods of `UIPickerViewDataSource` and `UIPickerViewDelegate` define the data source and select row behaviour of the `pickerView`.
 
@@ -1229,11 +1194,11 @@ We have gone through a long way so far, now, let's build and run the project, co
 3. Wait for a while until the fly zone info updated in the textView on the right side.
 4. Get the authorization fly zone ID you want to unlock from the textView, which should be **level 1**
 5. Press **Unlock** button and enter the fly zone ID to unlock it
-6. If you unlock the fly zone successfully, you may notice that the fly zone number and fly zone info are updated on the right textView, and one of the yellow circle will disappear in the map.
+6. If you unlock the fly zone successfully, you may notice that the fly zone number and fly zone info are updated on the right textView, and one of the yellow circles will disappear from the map.
 
 > Note: Limited Simulation Area
 > 
-> Currently, you can only test the GEO feature within **50km** of (37.460484, -122.115312), which is the location of **Palo Alto Airport** in California, United States.
+> Currently, you can only test the GEO feature within **50km** of (37.460484, -122.115312), which is the location of **Palo Alto Airport** in California, United States. //TODO: I don't think this is true anymore...
 > 
 
 ### Login and Logout DJI Account
