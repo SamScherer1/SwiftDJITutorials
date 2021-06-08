@@ -774,9 +774,8 @@ Next, let's refactor the `viewDidLoad` method and implement the `initUI` method 
 ~~~swift
 
     override func viewDidLoad() {
-        super.viewDidLoad()//TODO: just added, test...
+        super.viewDidLoad()
         
-        //self.title = "DJI GEO Demo" //TODO: remove as it's included in initUI...
         self.pickerContainerView.isHidden = true
         
         guard let aircraft = fetchAircraft() else { return }
@@ -1195,11 +1194,7 @@ We have gone through a long way so far, now, let's build and run the project, co
 4. Get the authorization fly zone ID you want to unlock from the textView, which should be **level 1**
 5. Press **Unlock** button and enter the fly zone ID to unlock it
 6. If you unlock the fly zone successfully, you may notice that the fly zone number and fly zone info are updated on the right textView, and one of the yellow circles will disappear from the map.
-
-> Note: Limited Simulation Area
-> 
-> Currently, you can only test the GEO feature within **50km** of (37.460484, -122.115312), which is the location of **Palo Alto Airport** in California, United States. //TODO: I don't think this is true anymore...
-> 
+ 
 
 ### Login and Logout DJI Account
 

@@ -1,32 +1,35 @@
 ---
-title: DJI Remote Logger Tutorial
-version: v4.12
-date: 2020-05-10
+title: DJI Remote Logger Tutorial (Swift)
+version: v4.14
+date: 2021-06-08
 github: https://github.com/DJI-Mobile-SDK-Tutorials/DJIRemoteLoggerDemo
-keywords: [iOS remote logger demo, DJI Remote Logger, remote logging, debug]
+keywords: [iOS remote logger demo, DJI Remote Logger, remote logging, debug, Swift]
 ---
 
 <!-- toc -->
 
 This tutorial is designed for you to obtain a better understanding of the DJI Remote Logger Tool. It will teach you how to use it for showing application log messages on a simple webpage.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/DJIRemoteLoggerDemo).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/RemoteLoggerDemoSwift).
+
+See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/DJIRemoteLoggerDemo) for an Objective C version. 
+
 
 ## Introduction
 
-  In order to use the DJI Remote Logger Tool, you should have two parts: **DJI iOS Mobile SDK** and **Server Script**. The remote logger feature is integrated inside the SDK, you can use this feature in your application directly. For the server part, there are two connection modes showing below:
+  This demo has two parts: a demo app built on **DJI iOS Mobile SDK** and a **Server Script**. The remote logger feature is integrated inside the SDK, you can use this feature in your application directly. For the server part, there are two connection modes showing below:
 
 ### HTTP Mode
 
 ![httpMode](../images/tutorials-and-samples/iOS/RemoteLoggerDemo/httpModeFinalOne.png)
 
-You can connect your iOS device and Mac to the same WiFi network or connect to a local wireless connection created on your Mac too. This would be helpful when you test your application outside without internet connection.
+You can connect your iOS device and Mac to the same WiFi network or connect to a local wireless connection created on your Mac. Creating a local connection will allow you to test your application without an internet connection.
 
 ### Localhost Mode
 
 ![localHostMode](../images/tutorials-and-samples/iOS/RemoteLoggerDemo/localHostModeFinal.png)
 
-If you don't have iOS device, you can use your Xcode Simulator too. Using the url string like **http://localhost:4567** can work well with the server script.
+If you don't have iOS device, you can use your Xcode Simulator to simulate one. Using the url string like **http://localhost:4567** can work well with the server script.//TODO: what does this mean?
 
 ## Setup and Run the Server
 
@@ -83,38 +86,32 @@ For other issues, please check the two problems above.
 
 ## Enable Remote Logging
 
-**1.** Implement the **DJISDKManagerDelegate** protocol method in the ViewController.m file's extension part. Then create a new method named **registerApp** and invoke it in the viewDidAppear method as shown below:
+**1.** Implement the **DJISDKManagerDelegate** protocol method in the ViewController.swift file's extension part.
 
-~~~objc
-- (void)registerApp
-{
-    //Please enter your App key in the "DJISDKAppKey" key in info.plist file.     
-    [DJISDKManager registerAppWithDelegate:self];
-}
-
-- (void)viewDidAppear:(BOOL)animated {
-    [super viewDidAppear:animated];
-    [self registerApp];    
-}
+~~~Swift
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        DJISDKManager.registerApp(with: self)
+    }
 ~~~
 
 > **Note:** If you don't know how to apply as a DJI developer and get the App Key, please refer to the [Get Started](../quick-start/index.html).
 
 **2**. Next, let's implement the DJISDKManagerDelegate method as shown below:
 
-~~~objc
-- (void)appRegisteredWithError:(NSError *)error
-{
-    NSString* message = @"Register App Successed!";
-    if (error) {
-        message = @"Register App Failed! Please enter your App Key and check the network.";
-    }else
-    {
-        [DJISDKManager enableRemoteLoggingWithDeviceID:@"Enter Device ID Here" logServerURLString:@"Enter URL Here"];
+~~~Swift
+    //MARK: - DJISDKManager Delegate Method
+    func appRegisteredWithError(_ error: Error?) {
+        var message = "Register App Successed!"
+        if let error = error {
+            message = "Register App Failed! Please enter your App Key and check the network. Error: \(error.localizedDescription)"
+        } else {
+            // DeviceID can be whatever you'd like
+            // URLString is provided in green when starting the server. It should begin with http:// and end with a port number
+            DJISDKManager.enableRemoteLogging(withDeviceID: "DeviceID", logServerURLString: "http://192.168.128.181:4567")
+        }
+        self.showAlertViewWith(title: "Register App", message: message)
     }
-
-    [self showAlertViewWithTitle:@"Register App" withMessage:message];
-}
 ~~~
 
 The delegate method above gets called when the app is registered. If the registration is successful, we can call the `+(void) enableRemoteLoggingWithDeviceID: (NSString * _Nullable) deviceID logServerURLString: (NSString*) url;` class method of **DJISDKManager** to enable remote logging feature of the SDK by passing the **deviceID** parameter and **url** parameter, which you can get from the server script command line.
@@ -127,27 +124,20 @@ The delegate method above gets called when the app is registered. If the registr
 >
 > ![webUrl](../images/tutorials-and-samples/iOS/RemoteLoggerDemo/webUrl.png)
 
-**3**. Build and run the project in Xcode. If everything is OK, you will see a "Register App Successed!" alert once the application loads.
+**3**. Build and run the project in Xcode. If everything is OK, you will see a "Register App Succeeded!" alert once the application loads.
 
 ## Show Log Message on Webpage
 
-   Go to Main.storyboard and drag a UIButton to the center of the view, name it "Log SDK Version" and create an IBAction method, named `- (IBAction)logSDKVersionButtonAction:(id)sender` for it in the ViewController.m file. Implement the IBAction method shown as below:
+   Go to Main.storyboard and drag a UIButton to the center of the view, name it "Log SDK Version" and create an IBAction method, named `@IBAction func logSDKVersionButtonAction(_ sender: Any)` for it in the ViewController.swift file. Implement the IBAction method shown as below:
 
-~~~objc
-- (IBAction)logSDKVersionButtonAction:(id)sender {
-   DJILogDebug(@"SDK Version: %@", [DJISDKManager SDKVersion]);
-}
+~~~Swift
+    //MARK: - IBAction Method
+    @IBAction func logSDKVersionButtonAction(_ sender: Any) {
+        DJIRemoteLogger.log(with: .debug, file: #file, function: #function, line: #line, string: DJISDKManager.sdkVersion())
+    }
 ~~~
 
-   In the code above, we use **DJILogDebug** Macro to show SDK's version info. There are five types of log Macros, you can use them for different purposes:
-
-- DJILogError( )
-- DJILogWarn( )
-- DJILogInfo( )
-- DJILogDebug( )
-- DJILogVerbose( )
-
-Finally, build and run the project, press the button, you may be able to see the SDK version log message on the webpage like the followings:
+Finally, build and run the project, press the button, you may be able to see the SDK version log message on the webpage like the following:
 
 ![appScreenshot](../images/tutorials-and-samples/iOS/RemoteLoggerDemo/screenshot.png)
 
@@ -161,7 +151,7 @@ Finally, build and run the project, press the button, you may be able to see the
 > ![appTransport](../images/tutorials-and-samples/iOS/RemoteLoggerDemo/appTransport.png)
 >
 
- Furthermore, the DJI Remote Logger Tool supports multiple iOS devices logging, you can assign different Device IDs for different iOS devices in the `+(void)enableRemoteLoggingWithDeviceID:logServerURLString:` class method of DJISDKManager.
+ Furthermore, the DJI Remote Logger Tool supports logging from multiple iOS devices, you can assign different Device IDs for different iOS devices in the `+(void)enableRemoteLoggingWithDeviceID:logServerURLString:` class method of DJISDKManager.
 
  Also you can use url content filter for specific device's log like this:
   `http://10.81.9.167:4567/?filter=113`.
@@ -170,4 +160,4 @@ Finally, build and run the project, press the button, you may be able to see the
 
 ### Summary
 
-  Congratulations! You've learned how to use DJI Remote Logger Tool to show log messages of your application using DJI Mobile SDK. With DJI Remote Logger Tool, you can developer and debug your application with DJI Mobile SDK more efficiently. Hope you enjoy this tutorial, Thanks!
+  Congratulations! You've learned how to use DJI Remote Logger Tool to show log messages of your application using DJI Mobile SDK. With DJI Remote Logger Tool, you can develop and debug your application with DJI Mobile SDK more efficiently. Hope you enjoyed this tutorial!
