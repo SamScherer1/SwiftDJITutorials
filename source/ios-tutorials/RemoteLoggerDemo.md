@@ -2,7 +2,7 @@
 title: DJI Remote Logger Tutorial (Swift)
 version: v4.14
 date: 2021-06-08
-github: https://github.com/DJI-Mobile-SDK-Tutorials/DJIRemoteLoggerDemo
+github: https://github.com/SamScherer1/RemoteLoggerDemoSwift
 keywords: [iOS remote logger demo, DJI Remote Logger, remote logging, debug, Swift]
 ---
 
