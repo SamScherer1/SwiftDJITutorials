@@ -1,15 +1,17 @@
 ---
-title: Application Activation and Aircraft Binding
-version: v4.12
-date: 2020-05-10
-github: https://github.com/DJI-Mobile-SDK-Tutorials/iOS-ActivationAndBindingDemo
-keywords: [Application Activation, Aircraft Binding, Link Mobile Phone Number, Bound, Activated, Real Name System]
+title: Application Activation and Aircraft Binding (Swift)
+version: v4.14
+date: 2021-06-08
+github: https://github.com/DJI-Mobile-SDK-Tutorials/iOS-ImportAndActivateSDKInXcode-Swift
+keywords: [Application Activation, Aircraft Binding, Link Mobile Phone Number, Bound, Activated, Real Name System, Swift]
 ---
 
->
-> Note: This tutorial only works for applications used in **China**. The same steps can be used for activating applications and binding aircraft in an existing application.
+> Note: This tutorial only works for applications used in **China**.//TODO: this can't be true?? The same steps can be used for activating applications and binding aircraft in an existing application.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-ActivationAndBindingDemo).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-ImportAndActivateSDKInXcode-Swift).
+
+See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-ActivationAndBindingDemo) for an Objective C version. 
+
 
 ## Introduction
 
@@ -17,11 +19,11 @@ DJI aircraft firmware requires mobile applications that control DJI aircraft to 
 
 To summarise the activation system:
 
-- Users in China are required to activate their application  by logging into their DJI account at least once every three months within the application.
+- Users in China are required to activate their application by logging into their DJI account at least once every three months within the application.
 
-- Activation will be persistent in the application until the user logs out.
+- Application will remain activated until the user logs out.
 
-- An internet connection will be required to log into a DJI account.
+- An internet connection is required to log into a DJI account.
 
 - Outside of China, the SDK will automatically activate the application without requiring the user to log in.
 
@@ -49,9 +51,9 @@ This demo is built based on the [ImportSDKDemo](https://github.com/DJI-Mobile-SD
 
 In order to fetch the updated application activation state and aircraft binding state, we can implement the `DJIAppActivationManagerDelegate` methods.
 
-Now, let's open the "ViewController.m" file, and create two IBOutlet properties and two IBAction methods to link the UI elements we just created in the storyboard. Then implement the **DJIAppActivationManagerDelegate** and **DJISDKManagerDelegate** protocols in the interface and create two properties to store the state enum values of `DJIAppActivationState` and `DJIAppActivationAircraftBindingState` as shown below:
+Now, let's open the "ViewController.swift" file, and create two IBOutlet properties and two IBAction methods to link the UI elements we just created in the storyboard. Then implement the **DJIAppActivationManagerDelegate** and **DJISDKManagerDelegate** protocols in the interface and create two properties to store the state enum values of `DJIAppActivationState` and `DJIAppActivationAircraftBindingState` as shown below:
 
-~~~objc
+~~~Swift
 @interface ViewController ()<DJIAppActivationManagerDelegate, DJISDKManagerDelegate>
 
 @property (weak, nonatomic) IBOutlet UILabel *bindingStateLabel;
@@ -67,7 +69,7 @@ Now, let's open the "ViewController.m" file, and create two IBOutlet properties 
 
 Next, replace the code in the `appRegisteredWithError` delegate method of `DJISDKManager` with the followings:
 
-~~~objc
+~~~Swift
 #pragma mark DJISDKManager Delegate Method
 - (void)appRegisteredWithError:(NSError *)error
 {
@@ -93,7 +95,7 @@ In the code above, if register app success, we invoke the `startConnectionToProd
 
 Furthermore, create the `updateUI` method as shown below to update the two UILabel properties' text value according to the values of `aircraftBindingState` and `activationState` properties, then invoke it in the `viewDidAppear:` method:
 
-~~~objc
+~~~Swift
 -(void)updateUI {
     switch (self.aircraftBindingState) {
         case DJIAppActivationAircraftBindingStateUnboundButCannotSync:
@@ -145,7 +147,7 @@ Furthermore, create the `updateUI` method as shown below to update the two UILab
 
 After you finish the steps above, you should implement the delegate methods of `DJIAppActivationManagerDelegate`:
 
-~~~objc
+~~~Swift
 #pragma mark DJIAppActivationManagerDelegate Methods
 -(void)manager:(DJIAppActivationManager *)manager didUpdateAppActivationState:(DJIAppActivationState)appActivationState {
     self.activationState = appActivationState;
@@ -168,7 +170,7 @@ The code above implements:
 
 In order to activate the application, we need to login to a DJI user account. Now let's implement the two IBAction methods as shown below:
 
-~~~objc
+~~~Swift
 - (IBAction)onLoginClick:(id)sender {
     [[DJISDKManager userAccountManager] logIntoDJIUserAccountWithAuthorizationRequired:NO withCompletion:^(DJIUserAccountState state, NSError * _Nullable error) {
         if (error) {
