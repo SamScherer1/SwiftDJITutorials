@@ -31,7 +31,7 @@ For a more in depth understanding of the DJI UXSDK, please go to the [UX SDK Int
 
 ## Importing DJI SDK, UXSDK and DJIWidget with CocoaPods
 
-Now, let's create a new project in Xcode, choose the **Single View Application** template, press "Next" and enter "UXSDKDemo" in the **Product Name** field (keep the other default settings).
+Now, let's create a new project in Xcode, select the iOS platform tab, then choose the normal **App** template, press "Next" and enter "UXSDKDemo" in the **Product Name** field. Make sure interface is set to Storyboard and Lanugage is set to Swift (keep the other default settings).
 
 Once the project is created, let's download and import the **DJISDK.framework** and **DJIUXSDK.framework** using CocoaPods. In Finder, navigate to the root folder of the project and create a **Podfile**. To learn more about Cocoapods, please check [this guide](https://guides.cocoapods.org/using/getting-started.html#getting-started).
 
@@ -40,7 +40,7 @@ Replace the content of the **Podfile** with the following:
 ~~~
 platform :ios, '10.0'
 
-target 'UXSDKSwiftSample' do
+target 'UXSDKDemo' do
   use_frameworks!
   pod 'DJI-SDK-iOS', '~> 4.14'
   pod 'DJI-UXSDK-iOS', '~> 4.14'
@@ -106,9 +106,9 @@ Once you finish the steps above, let's open the "Main.storyboard" and set the ex
 
 For more details on the storyboard settings, please check the tutorial's Github Sample Project.
 
-#### Working on the Header File
+#### Subclassing DUXDefaultLayoutViewController
 
-Next, let's open the **DefaultLayoutViewController.h** file, import the **DJIUXSDK** header file and change the subclass to `DUXDefaultLayoutViewcontroller` as shown below:
+Next, let's remove ViewController.swift, create a file called **DefaultLayoutViewController.swift**, import the **DJIUXSDK** header file and change the subclass to `DUXDefaultLayoutViewcontroller` as shown below:
 
 ~~~Swift
 import DJIUXSDK
@@ -160,6 +160,17 @@ Now, add the following code to **DefaultLayoutViewController**:
         self.showAlertViewWith(message: "Registration Success")
         self.connectToProduct()
     }
+
+    func showAlertViewWith(message: String) {
+        let alert = UIAlertController.init(title: nil, message: message, preferredStyle: .alert)
+        let okAction = UIAlertAction.init(title:"OK", style: .default, handler: nil)
+        alert.addAction(okAction)
+        self.present(alert, animated: true, completion: nil)
+    }
+
+    func didUpdateDatabaseDownloadProgress(_ progress: Progress) {
+        //unused
+    }
 ~~~
 
 In the code above, we have implemented the following logic:
@@ -167,6 +178,19 @@ In the code above, we have implemented the following logic:
 1. In the `viewDidLoad` method, we invoked the `registerAppWithDelegate` method of `DJISDKManager` to make the application connect to a DJI Server through the internet. Doing this verified the App Key and set the `DJISDKManagerDelegate` to `DefaultLayoutViewController`. For more details on registering the application, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#register-application).
 
 2. We also implemented the delegate method `appRegisteredWithError(_ error: Error?)` of **DJISDKManagerDelegate** to connect the application to a DJI Product by invoking the `startConnectionToProduct` method of **DJISDKManager** when registered successfully. Also showed an alert view displaying the result of the registration attempt.
+
+3. Next we added a method for displaying the registration result in an alert.
+
+4. Finally we implemented didUpdateDatabaseDownloadProgress(_ progress:) in order to conform to DJISDKManagerDelegate but don't actually use it for anything. 
+
+## Bug fix for UXSDK 4.14
+
+Due to a bug in UXSDK 4.14 you may need to remove the following lines from DJIUXSDK.h. Simply try to build the project and the errors will guide you to the correct lines.
+
+~~~objc
+#import <DJIUXSDK/DUXWidgetcollectionView.h>
+#import <DJIUXSDK/DUXAircraftConnectionChecklistItem.h>
+~~~
 
 ## Connecting to the Aircraft and Run the Project
 
