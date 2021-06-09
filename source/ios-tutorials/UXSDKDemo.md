@@ -114,6 +114,8 @@ Next, let's remove ViewController.swift, create a file called **DefaultLayoutVie
 import DJIUXSDK
 
 class DefaultLayoutViewController: DUXDefaultLayoutViewController, DJISDKManagerDelegate {
+
+}
 ~~~
 
 The **DUXDefaultLayoutViewcontroller** is a viewController designed around 5 child view controllers, and it's a fully functioning mini-DJI Go. It uses all the elements of the UXSDK to give you the foundation of your app. It includes status bar, take off, go home, camera actions buttons and camera settings, OSD dashboard, FPV live vide feed view, etc. The default layout is easily configured and adjusted.
