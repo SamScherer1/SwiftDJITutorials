@@ -108,25 +108,19 @@ For more details on the storyboard settings, please check the tutorial's Github 
 
 #### Subclassing DUXDefaultLayoutViewController
 
-Next, let's remove ViewController.swift, create a file called **DefaultLayoutViewController.swift**, import the **DJIUXSDK** header file and change the subclass to `DUXDefaultLayoutViewcontroller` as shown below:
+Next, let's remove ViewController.swift, create a file called **DefaultLayoutViewController.swift**, import the **DJIUXSDK** module, change the subclass to `DUXDefaultLayoutViewcontroller` and conform DefaultLayoutViewController to DJISDKManagerDelegate as shown below:
 
 ~~~Swift
 import DJIUXSDK
 
-class DefaultLayoutViewController: DUXDefaultLayoutViewController {
+class DefaultLayoutViewController: DUXDefaultLayoutViewController, DJISDKManagerDelegate {
 ~~~
 
 The **DUXDefaultLayoutViewcontroller** is a viewController designed around 5 child view controllers, and it's a fully functioning mini-DJI Go. It uses all the elements of the UXSDK to give you the foundation of your app. It includes status bar, take off, go home, camera actions buttons and camera settings, OSD dashboard, FPV live vide feed view, etc. The default layout is easily configured and adjusted.
 
 ## Application Registration
 
-Last, let's implement the application registration feature. Open the **DefaultLayoutViewController.swift** file and implement the `DJISDKManagerDelegate` protocol as shown below:
-
-~~~Swift
-class DefaultLayoutViewController: DUXDefaultLayoutViewController, DJISDKManagerDelegate {
-~~~
-
-Now, add the following code to **DefaultLayoutViewController**:
+Now, add the following code to **DefaultLayoutViewController** to handle application registration:
 
 ~~~Swift
     override func viewDidLoad() {
