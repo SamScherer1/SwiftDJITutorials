@@ -184,17 +184,34 @@ Then invoke the `setupVideoPreviewer` method to setup the DJIVideoPreviewer in t
 
 ~~~Swift
 
-#pragma mark - DJIVideoFeedListener
+    // MARK: DJIVideoFeedListener Method
+    func videoFeed(_ videoFeed: DJIVideoFeed, didUpdateVideoData rawData: Data) {
+        let videoData = rawData as NSData
+        let videoBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: videoData.length)
+        videoData.getBytes(videoBuffer, length: videoData.length)
+        DJIVideoPreviewer.instance().push(videoBuffer, length: Int32(videoData.length))
+    }
 
--(void)videoFeed:(DJIVideoFeed *)videoFeed didUpdateVideoData:(NSData *)videoData {
-    [[DJIVideoPreviewer instance] push:(uint8_t *)videoData.bytes length:(int)videoData.length];
-}
-
-#pragma mark - DJICameraDelegate
-
--(void) camera:(DJICamera*)camera didUpdateSystemState:(DJICameraSystemState*)systemState
-{
-}
+    // MARK: DJICameraDelegate Method
+    func camera(_ camera: DJICamera, didUpdate cameraState: DJICameraSystemState) {
+        self.isRecording = cameraState.isRecording
+        self.recordTimeLabel.isHidden = !self.isRecording
+        
+        self.recordTimeLabel.text = formatSeconds(seconds: cameraState.currentVideoRecordingTimeInSeconds)
+        
+        if (self.isRecording == true) {
+            self.recordButton.setTitle("Stop Record", for: .normal)
+        } else {
+            self.recordButton.setTitle("Start Record", for: .normal)
+        }
+        
+        //Update UISegmented Control's State
+        if (cameraState.mode == DJICameraMode.shootPhoto) {
+            self.workModeSegmentControl.selectedSegmentIndex = 0
+        } else {
+            self.workModeSegmentControl.selectedSegmentIndex = 1
+        }
+    }
 
 ~~~
 
@@ -217,36 +234,34 @@ If you can see the live video stream in the application, congratulations! Let's 
 Let's implement the `captureAction` IBAction method as shown below:
 
 ~~~Swift
-- (IBAction)captureAction:(id)sender {
-
-    DJICamera* camera = [self fetchCamera];
-    if (camera) {
-        WeakRef(target);
-        [camera setShootPhotoMode:DJICameraShootPhotoModeSingle withCompletion:^(NSError * _Nullable error) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [camera startShootPhotoWithCompletion:^(NSError * _Nullable error) {
-                    WeakReturn(target);
-                    if (error) {
-                        [target showAlertViewWithTitle:@"Take Photo Error" withMessage:error.description];
+    @IBAction func captureAction(_ sender: UIButton) {
+        guard let camera = fetchCamera() else {
+            return
+        }
+        
+        camera.setMode(DJICameraMode.shootPhoto, withCompletion: {(error) in
+            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 1){
+                camera.startShootPhoto(completion: { (error) in
+                    if let _ = error {
+                        NSLog("Shoot Photo Error: " + String(describing: error))
                     }
-                }];
-            });
-        }];
+                })
+            }
+        })
     }
-}
 ~~~
 
-In the code above, we firstly invoke the following method of DJICamera to set the shoot photo mode to `DJICameraShootPhotoModeSingle`:
+In the code above, we first invoke the following method of DJICamera to set the camera mode to `DJICameraMode.shootPhoto`:
 
 ~~~Swift
-- (void)setShootPhotoMode:(DJICameraShootPhotoMode)mode withCompletion:(DJICompletionBlock)completion;
+- (void)setMode:(DJICameraMode)mode withCompletion:(DJICompletionBlock)completion;
 ~~~
 
-  Normally, once an operation is finished, the camera still needs some time to finish up all the work. It's safe to delay the next operation after an operation is finished. So let's enqueue the block which may invoke the following method with 1 second delay to control the camera to shoot a photo:
+  Normally, once an operation is finished, the camera still needs some time to finish up all the work. It's safe to delay the next operation after an operation is finished. So let's enqueue the block which may invoke the following method with 1 second delay to shoot a photo:
 
 `- (void)startShootPhotoWithCompletion:(DJICompletionBlock)completion;`
 
-  You can check the shoot photo result from the `DJICompletionBlock`.
+  You can check the shoot photo result in the `DJICompletionBlock`.
 
   Build and run your project and then try the shoot photo function. If the screen flash after your press the **Capture** button, your capture fuction should work now.
 
@@ -254,11 +269,11 @@ In the code above, we firstly invoke the following method of DJICamera to set th
 
 ### 1. Switching Camera Mode
 
-   Before we implement the record function, we need to switch the camera work mode firstly.
+   Before we implement the record function, we need to switch the camera work mode first.
 
    Let's check the DJICameraMode enum in **DJICameraSettingsDef.h** file.
 
-~~~Swift
+~~~objc
 /**
  *  Camera work modes.
  */
@@ -306,142 +321,123 @@ typedef NS_ENUM (NSUInteger, DJICameraMode){
 
    You can see from above that there are 5 types of **DJICameraMode**. Here we use the first two types.
 
-   Remember we create a UISegment Control in the storyboard? We can update the state of the segmented control when switching between **DJICameraModeShootPhoto** and **DJICameraModeRecordVideo** using the previous delegate method like this:
+   Remember we created a UISegment Control in the storyboard? We can update the state of the segmented control when switching between **DJICameraModeShootPhoto** and **DJICameraModeRecordVideo** using the previous delegate method like this:
 
 ~~~Swift
--(void) camera:(DJICamera*)camera didUpdateSystemState:(DJICameraSystemState*)systemState
-{        
-    //Update UISegmented Control's state
-    if (systemState.mode == DJICameraModeShootPhoto) {
-        [self.changeWorkModeSegmentControl setSelectedSegmentIndex:0];
-    }else if (systemState.mode == DJICameraModeRecordVideo){
-        [self.changeWorkModeSegmentControl setSelectedSegmentIndex:1];
+    func camera(_ camera: DJICamera, didUpdate cameraState: DJICameraSystemState) {
+        //Update UISegmented Control's State
+        if (cameraState.mode == DJICameraMode.shootPhoto) {
+            self.workModeSegmentControl.selectedSegmentIndex = 0
+        } else {
+            self.workModeSegmentControl.selectedSegmentIndex = 1
+        }
     }
-}
 
 ~~~
 
  Now we can implement the `changeWorkModeAction` IBAction method as follows:
 
 ~~~Swift
-
-- (IBAction)changeWorkModeAction:(id)sender {
-
-    UISegmentedControl *segmentControl = (UISegmentedControl *)sender;
-    DJICamera* camera = [self fetchCamera];
-
-    if (camera) {
-        WeakRef(target);
-        if (segmentControl.selectedSegmentIndex == 0) { //Take photo
-
-            [camera setMode:DJICameraModeShootPhoto withCompletion:^(NSError * _Nullable error) {
-                WeakReturn(target);
-                if (error) {
-                    [target showAlertViewWithTitle:@"Set DJICameraModeShootPhoto Failed" withMessage:error.description];
+    @IBAction func workModeSegmentChange(_ sender: UISegmentedControl) {
+        guard let camera = fetchCamera() else {
+            return
+        }
+        
+       if (sender.selectedSegmentIndex == 0) {
+            camera.setMode(DJICameraMode.shootPhoto,  withCompletion: { (error) in
+                if let _ = error {
+                    NSLog("Set ShootPhoto Mode Error: " + String(describing: error))
                 }
-            }];
-
-        }else if (segmentControl.selectedSegmentIndex == 1){ //Record video
-
-            [camera setMode:DJICameraModeRecordVideo withCompletion:^(NSError * _Nullable error) {
-                WeakReturn(target);
-                if (error) {
-                    [target showAlertViewWithTitle:@"Set DJICameraModeRecordVideo Failed" withMessage:error.description];
+            })
+            
+        } else if (sender.selectedSegmentIndex == 1) {
+            camera.setMode(DJICameraMode.recordVideo,  withCompletion: { (error) in
+                if let _ = error {
+                    NSLog("Set RecordVideo Mode Error: " + String(describing: error))
                 }
-            }];
-
+            })
         }
     }
-
-}
 
 ~~~
 
  In the code above, we invoke the
- `- (void)setMode:(DJICameraMode)mode withCompletion:(DJICompletionBlock)completion;` method of DJICamera to change the camera mode.  Here we add two UIAlertViews to show warnings when the user set `DJICameraMode` failed.
+ `- (void)setMode:(DJICameraMode)mode withCompletion:(DJICompletionBlock)completion;` method of DJICamera to change the camera mode.  Here we add two UIAlertViews to show warnings when the user set `DJICameraMode` failed. //Um where did 
 
 ### 2. Working on the Record Action
 
-  Firstly, let's go to Main.storyboard and drag a UILabel on top of the screen, set up the Autolayout constraints for it and create an IBOutlet named `currentRecordTimeLabel` in the **DJICameraViewController.m** file.
+  First, let's go to Main.storyboard and drag a UILabel on top of the screen, set up the Autolayout constraints for it and create an IBOutlet named `currentRecordTimeLabel` in the **FPVViewController.swift** file.
 
-  Then add a BOOL variable `isRecording` in the class extension part of **DJICameraViewController**. Be sure to hide the `currentRecordTimeLabel` in the `viewDidLoad` method.
+  Then add a BOOL variable `isRecording` to **FPVViewController**. Be sure to hide the `currentRecordTimeLabel` and register the app in the `viewDidLoad` method as well.
 
 ~~~Swift
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    [self.currentRecordTimeLabel setHidden:YES];
-}
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        DJISDKManager.registerApp(with: self)
+        recordTimeLabel.isHidden = true
+    }
 ~~~
 
 We can update the bool value for `isRecording` and `currentRecordTimeLabel`'s text value in the following delegate method:
 
 ~~~Swift
-
--(void) camera:(DJICamera*)camera didUpdateSystemState:(DJICameraSystemState*)systemState
-{
-    self.isRecording = systemState.isRecording;
-
-    [self.currentRecordTimeLabel setHidden:!self.isRecording];
-    [self.currentRecordTimeLabel setText:[self formattingSeconds:systemState.currentVideoRecordingTimeInSeconds]];
-
-    if (self.isRecording) {
-        [self.recordBtn setTitle:@"Stop Record" forState:UIControlStateNormal];
-    }else
-    {
-        [self.recordBtn setTitle:@"Start Record" forState:UIControlStateNormal];
+    func camera(_ camera: DJICamera, didUpdate cameraState: DJICameraSystemState) {
+        self.isRecording = cameraState.isRecording
+        self.recordTimeLabel.isHidden = !self.isRecording
+        
+        self.recordTimeLabel.text = formatSeconds(seconds: cameraState.currentVideoRecordingTimeInSeconds)
+        
+        if (self.isRecording == true) {
+            self.recordButton.setTitle("Stop Record", for: .normal)
+        } else {
+            self.recordButton.setTitle("Start Record", for: .normal)
+        }
+        
+        //Update UISegmented Control's State
+        if (cameraState.mode == DJICameraMode.shootPhoto) {
+            self.workModeSegmentControl.selectedSegmentIndex = 0
+        } else {
+            self.workModeSegmentControl.selectedSegmentIndex = 1
+        }
     }
-
-    //Update UISegmented Control's state
-    if (systemState.mode == DJICameraModeShootPhoto) {
-        [self.changeWorkModeSegmentControl setSelectedSegmentIndex:0];
-    }else if (systemState.mode == DJICameraModeRecordVideo){
-        [self.changeWorkModeSegmentControl setSelectedSegmentIndex:1];
-    }   
-}
 
 ~~~
 
    Because the text value of `currentRecordingTime` is counted in seconds, so we need to convert it to "mm:ss" format like this:
 
 ~~~Swift
-- (NSString *)formattingSeconds:(int)seconds
-{
-    NSDate *date = [NSDate dateWithTimeIntervalSince1970:seconds];
-    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"mm:ss"];
-    [formatter setTimeZone:[NSTimeZone timeZoneForSecondsFromGMT:0]];
-
-    NSString *formattedTimeString = [formatter stringFromDate:date];
-    return formattedTimeString;
-}
+    func formatSeconds(seconds: UInt) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(seconds))
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "mm:ss"
+        return(dateFormatter.string(from: date))
+    }
 ~~~
 
    Next, add the following codes to the `recordAction` IBAction method as follows:
 
 ~~~Swift
-- (IBAction)recordAction:(id)sender {
-
-    DJICamera* camera = [self fetchCamera];
-    if (camera) {
-        WeakRef(target);
+    @IBAction func recordAction(_ sender: UIButton) {
+        guard let camera = fetchCamera() else {
+            return
+        }
+        
         if (self.isRecording) {
-            [camera stopRecordVideoWithCompletion:^(NSError * _Nullable error) {
-                WeakReturn(target);
-                if (error) {
-                    [target showAlertViewWithTitle:@"Stop Record Video Error" withMessage:error.description];
+            camera.stopRecordVideo(completion: { (error) in
+                if let _ = error {
+                    NSLog("Stop Record Video Error: " + String(describing: error))
                 }
-            }];
-        }else
-        {
-            [camera startRecordVideoWithCompletion:^(NSError * _Nullable error) {
-                WeakReturn(target);
-                if (error) {
-                    [target showAlertViewWithTitle:@"Start Record Video Error" withMessage:error.description];
+            })
+        } else {
+            camera.startRecordVideo(completion: { (error) in
+                if let _ = error {
+                    NSLog("Start Record Video Error: " + String(describing: error))
                 }
-            }];
+            })
         }
     }
-}
 ~~~
 
   In the code above, we implement the `startRecordVideoWithCompletion` and `stopRecordVideoWithCompletion` methods of the **DJICamera** class based on the `isRecording` property value. And show an alertView when an error occurs.
