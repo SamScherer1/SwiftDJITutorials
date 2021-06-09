@@ -355,7 +355,7 @@ import DJISDK
 
 class MapController : NSObject, MKMapViewDelegate {
 
-    public var flyZones = [DJIFlyZoneInformation]()//TODO: public scope necessary?
+    public var flyZones = [DJIFlyZoneInformation]()
     var aircraftCoordinate : CLLocationCoordinate2D
     var mapView : MKMapView
     var aircraftAnnotation : AircraftAnnotation?
@@ -452,11 +452,6 @@ Moreover, implement the `updateFlyZonesInSurroundingArea` and `updateFlyZoneOver
                         break
                     }
                 }
-                //TODO: test this!
-//                if anOverlay == nil {
-//                    anOverlay = LimitSpaceOverlay(limitSpaceInfo: flyZone)
-//                }
-//                overlays.append(anOverlay!)
                 overlays.append(anOverlay ?? LimitSpaceOverlay(limitSpaceInfo: flyZone))
                 limitFlyZones.append(flyZone)
             }
@@ -472,7 +467,7 @@ In the code above, we implement the following features:
 
 1. We invoke the `updateFlyZonesInSurroundingArea()` method in the `updateFlyZones` and `forceUpdateFlyZones` methods to update the fly zones and the `updateFlyZones` method will be invoke in the `updateAircraftLocation:withHeading:` method when the aircraft location changes.
 
-2. In the `updateFlyZonesInSurroundingArea()` method, we invoke the `getFlyZonesInSurroundingAreaWithCompletion:` method of **DJIFlyZoneManager** to get all the fly zones within 20km of the aircraft. If you are using DJISimulator to test the GEO system feature, this method is available only when the aircraft location is within 50km of (37.460484, -122.115312), which is the coordinate of **Palo Alto Airport** //TODO: is this actually true? Test... . Then in the completion method, if it gets the `flyZones` array successfully, we invoke the `updateFlyZoneOverlayWithInfos:` method to update the fly zone overlays on the map view. Otherwise, remove the map overlays on the map view and clean up the `flyZones` array.
+2. In the `updateFlyZonesInSurroundingArea()` method, we invoke the `getFlyZonesInSurroundingAreaWithCompletion:` method of **DJIFlyZoneManager** to get all the fly zones within 20km of the aircraft. Then in the completion method, if it gets the `flyZones` array successfully, we invoke the `updateFlyZoneOverlayWith(_ flyZones:)` method to update the fly zone overlays on the map view. Otherwise, remove the map overlays on the map view and clean up the `flyZones` array.
 
 
 3. In the `updateFlyZoneOverlayWith(_ flyZones:)` method, we first create the `overlays` and `flyZones` arrays to store the `DJILimitSpaceOverlay` and `DJIFlyZoneInformation` objects. Next, use a **for** loop to get the `DJILimitSpaceOverlay` and `DJIFlyZoneInformation` objects and store in the arrays. 
