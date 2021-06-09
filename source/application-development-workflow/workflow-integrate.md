@@ -8,7 +8,7 @@ The examples below import the DJI SDK into a new iOS project using Swift. The sa
 
 ## Xcode Project Integration
 
-Screenshots in this section are generated using Xcode 7.3.//TODO: update?
+Screenshots in this section are generated using Xcode 7.3.
 
 ### Create a New Application
 
