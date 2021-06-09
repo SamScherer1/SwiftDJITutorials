@@ -24,7 +24,7 @@ Screenshots in this section are generated using Xcode 7.3.
 ### Install SDK with CocoaPods in the Project
 
    * In Finder, navigate to the root folder of the project, and create a **Podfile**. To learn more about Cocoapods, please check [this guide](https://guides.cocoapods.org/using/getting-started.html#getting-started).
-   * Replace the content of the **Podfile** with the followings:
+   * Replace the content of the **Podfile** with the following:
 
    ~~~
     # platform :ios, '9.0'
@@ -59,14 +59,12 @@ Screenshots in this section are generated using Xcode 7.3.
 ### Configure Build Settings
 
    * Open the **ImportSDKDemo.xcworkspace** file in Xcode.
-   * For DJI products that connect to the mobile device through USB, add the "Supported external accessory protocols" key to the **info.plist** file, and add the strings "com.dji.video", "com.dji.protocol" and "com.dji.common" to the key.
-   ![supportedExternalAccessoryProtocols](../images/quick-start/iOSSupportedExternalAccessories.png)
+   * In order to connect to DJI products via USB, add the "Supported external accessory protocols" key to the **info.plist** file, and add the strings "com.dji.video", "com.dji.protocol" and "com.dji.common" to the key.
+   ![supportedExternalAccessoryProtocols](../images/quick-start/iOSSupportedExternalAccessories.png)//TODO: update picture
    * Since iOS 9, App Transport Security has blocked cleartext HTTP (http://) resource loading. The "App Transport Security Settings" key must be added and "Allow Arbitrary Loads" must be set to "YES".
-   ![allowArbitraryLoads](../images/quick-start/iOSAllowArbitraryLoads.png)
-   * For Xcode project which uses Swift 3 above, please delete all the paths in **Header Search Paths** except `$(PODS_ROOT)/Headers/Public` in **Build Settings** to help fix the Swift compiler error.
-   ![headerSearchPathIssue](../images/application-development-workflow/headerSearchPathIssue_1.png)
-   > Note: The Swift compiler error looks like this: **Inclue of non-modular header inside framework module 'DJISDK'**.
-   >![headerSearchPathIssue2](../images/application-development-workflow/headerSearchPathIssue_2.png)
+   ![allowArbitraryLoads](../images/quick-start/iOSAllowArbitraryLoads.png)//TODO: update picture
+   * The DJI Mobile SDK needs permission to access Bluetooth. Add the key "Privacy - Bluetooth Always Usage Description" to your info.plist and give it some value.
+   ![bluetoothUseDescription](../images/quick-start/iOSAllowBluetooth.png)//TODO: add picture
 
 ### Register Application
 
@@ -97,8 +95,8 @@ class ViewController: UIViewController, DJISDKManagerDelegate {
     }
 ~~~
 
-   * The `DJISDKManagerDelegate` protocol requires the`appRegisteredWithError` method to be implemented.
-   * Additionally implement `showAlertViewWithTitle` to give the registration result in a simple view.
+   * The `DJISDKManagerDelegate` protocol requires the`appRegisteredWithError(_ error:)` and didUpdateDatabaseDownloadProgress(_ progress:) methods to be implemented, but we won't be doing anything in didUpdateDatabaseDownloadProgress(_ progress:)
+   * Additionally implement `showAlertViewWithTitle(title: String, withMessage message: String)` to give the registration result in a simple view.
 
 ~~~Swift
     func appRegisteredWithError(_ error: Error?) {
@@ -110,6 +108,10 @@ class ViewController: UIViewController, DJISDKManagerDelegate {
         }
 
         self.showAlertViewWithTitle(title:"Register App", withMessage: message)
+    }
+
+    func didUpdateDatabaseDownloadProgress(_ progress: Progress) {
+        //Unused...
     }
 
     func showAlertViewWithTitle(title: String, withMessage message: String) {
