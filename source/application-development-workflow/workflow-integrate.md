@@ -8,13 +8,14 @@ The examples below import the DJI SDK into a new iOS project using Swift. The sa
 
 ## Xcode Project Integration
 
-Screenshots in this section are generated using Xcode 7.3.
+Screenshots in this section are generated using Xcode 12.5.
 
 ### Create a New Application
 
    * Open Xcode.
    * Select **File->New->Project**.
-   * Choose **Single View Application** template.
+   * Select the **iOS tab**.
+   * Choose **App** template.
    * Press **Next**.
       ![createProject](../images/quick-start/iOSCreateProject.png)  
    * "ImportSDKDemo" will be used as the **Product Name**.
@@ -60,11 +61,11 @@ Screenshots in this section are generated using Xcode 7.3.
 
    * Open the **ImportSDKDemo.xcworkspace** file in Xcode.
    * In order to connect to DJI products via USB, add the "Supported external accessory protocols" key to the **info.plist** file, and add the strings "com.dji.video", "com.dji.protocol" and "com.dji.common" to the key.
-   ![supportedExternalAccessoryProtocols](../images/quick-start/iOSSupportedExternalAccessories.png)//TODO: update picture
+   ![supportedExternalAccessoryProtocols](../images/quick-start/iOSSupportedExternalAccessories.png)
    * Since iOS 9, App Transport Security has blocked cleartext HTTP (http://) resource loading. The "App Transport Security Settings" key must be added and "Allow Arbitrary Loads" must be set to "YES".
-   ![allowArbitraryLoads](../images/quick-start/iOSAllowArbitraryLoads.png)//TODO: update picture
+   ![allowArbitraryLoads](../images/quick-start/iOSAllowArbitraryLoads.png)
    * The DJI Mobile SDK needs permission to access Bluetooth. Add the key "Privacy - Bluetooth Always Usage Description" to your info.plist and give it some value.
-   ![bluetoothUseDescription](../images/quick-start/iOSAllowBluetooth.png)//TODO: add picture
+   ![bluetoothUseDescription](../images/quick-start/iOSAllowBluetooth.png)
 
 ### Register Application
 
