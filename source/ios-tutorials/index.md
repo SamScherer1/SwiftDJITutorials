@@ -335,7 +335,7 @@ Then add a BOOL variable `isRecording` to **FPVViewController**. Be sure to hide
     }
 ~~~
 
-We can update the bool value for `isRecording` and `recordTimeLabel`'s text value in the following delegate method:
+We can update `isRecording` and `recordTimeLabel`'s text value in the following delegate method:
 
 ~~~Swift
     func camera(_ camera: DJICamera, didUpdate cameraState: DJICameraSystemState) {
@@ -405,4 +405,4 @@ We can update the bool value for `isRecording` and `recordTimeLabel`'s text valu
 
 ### Summary
 
-   In this tutorial, you’ve learned how to use DJI Mobile SDK to show the FPV View from the aircraft's camera and control the camera of DJI's Aircraft to shoot photo and record video. These are the most basic and common features in a typical drone mobile app: **Capture** and **Record**. However, if you want to create a drone app which is more fancy, you still have a long way to go. More advanced features should be implemented, including previewing the photo and video in the SD Card, showing the OSD data of the aircraft and so on. Hope you enjoy this tutorial, and stay tuned for our next one!
+   In this tutorial, you’ve learned how to use DJI Mobile SDK to show the FPV View from the aircraft's camera, take photos and record video. These are the most basic and common features in a typical drone mobile app: **Capture** and **Record**. However, if you want to create a drone app which is more fancy, you still have a long way to go. More advanced features can be implemented such as previewing the photos and videos on the SD Card, showing the aircraft's OSD data and more. Hope you enjoyed this tutorial!
