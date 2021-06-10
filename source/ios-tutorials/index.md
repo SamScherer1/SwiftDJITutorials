@@ -24,7 +24,7 @@ Now, let's create a new project in Xcode, choose **Single View Application** tem
 
 Once the project is created, let's delete the "ViewController.swift" file created by Xcode by default. Create a new ViewController named "FPVViewController".
 
-Now, let's install the **DJISDK.framework** in the Xcode project using Cocoapods and implement the SDK activation process in the "FPVViewController.swift" file. If you are not familiar with the process of installing and activating DJI SDK, please check the Github source code and this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#Xcode-Project-Integration) for details. //TODO: check link, use Swift version if one exists.
+Now, let's install the **DJISDK.framework** in the Xcode project using Cocoapods and implement the SDK activation process in the "FPVViewController.swift" file. If you are not familiar with the process of installing and activating DJI SDK, please check the Github source code and this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#Xcode-Project-Integration) for details.
 
 ## Application Activation and Aircraft Binding in China
 
@@ -40,18 +40,36 @@ Now, let's install the **DJISDK.framework** in the Xcode project using Cocoapods
 
   **1**. We use the **FFMPEG** decoding library (found at <a href="http://ffmpeg.org" target="_blank">http://ffmpeg.org</a>) to do software video decoding here. For the hardware video decoding, we provide a **H264VTDecode** decoding library. You can find them in the `DJIWidget/DJIWidget/VideoPreviewer` folder, which you can download it from <a href="https://github.com/dji-sdk/DJIWidget/tree/master/DJIWidget/VideoPreviewer" target="_blank">DJIWidget Github Repository</a>.
 
-  DJIWidget is available through [CocoaPods](http://cocoapods.org). To install it, simply add the following line to your Podfile:
+  DJIWidget is available through [CocoaPods](http://cocoapods.org). To install it, simply add the following lines to your Podfile:
 
   ```
+  use_frameworks!
   pod 'DJIWidget', '~> 1.6.4'
   ```
 
-  > Note: Remember to add `use_frameworks!` in the pod file to use DJIWidget as a dynamic framework in Swift project.
-  >
+Next, run the following command in the path of the project's root folder:
 
-### Working on the DJICameraViewController
+~~~
+pod install
+~~~
 
- **1**. Let's open the `FPVDemo.xcworkspace` file in Xcode and open the Main.storyboard, then add a new View Controller and set **FPVViewController** as the **Class** for it:
+If you installed it successfully, you should get a message similar to the following:
+
+~~~
+Analyzing dependencies
+Downloading dependencies
+Installing DJI-SDK-iOS (4.14)
+Installing DJIWidget (1.6.4)
+Generating Pods project
+Integrating client project
+
+[!] Please close any current Xcode sessions and use `ImportSDKDemo.xcworkspace` for this project from now on.
+Pod installation complete! There are 2 dependencies from the Podfile and 2 total pods installed.
+~~~
+
+### Working on the FPVViewController
+
+ **1**. Let's open the `FPVDemo.xcworkspace` file in Xcode and open the Main.storyboard, then add a new View Controller and set its **Class** as **FPVViewController**:
 
   ![rootController](../images/tutorials-and-samples/iOS/FPVDemo/rootController.png)
 
@@ -59,7 +77,7 @@ Add a UIView inside the View Controller. Then, add two UIButtons and one UISegme
 
   ![Storyboard](../images/tutorials-and-samples/iOS/FPVDemo/Storyboard.png)
 
-  Go to "FPVViewController.swift" file and import the **DJISDK** and **DJIVideoPreviewer** header files. Next implement four delegate protocols and set the IBOutlets and IBActions for the UI we just create in Main.storyboard as shown below:
+Replace "ViewController.swift" with a new file called "FPVViewController.swift" and import **DJISDK** and **DJIWidget**. Next implement four delegate protocols and set the IBOutlets and IBActions for the UI we just created in Main.storyboard as shown below:
 
 ~~~Swift
 import UIKit
@@ -83,6 +101,7 @@ class FPVViewController: UIViewController,  DJIVideoFeedListener, DJISDKManagerD
     @IBAction func workModeSegmentChange(_ sender: UISegmentedControl) {
         // Implement Later
     }
+}
 ~~~
 
 **2.** Furthermore, let's create the `setupVideoPreviewer` and `resetVideoPreviewer` methods as shown below:
@@ -174,9 +193,24 @@ If the product is **A3**, **N3**, **Matrice 600** or **Matrice 600 Pro**, we inv
         
         self.resetVideoPreview()
     }
+
+    func appRegisteredWithError(_ error: Error?) {
+        var message = "Register App Successed!"
+        if let _ = error {
+            message = "Register app failed! Please enter your app key and check the network."
+        } else {
+            DJISDKManager.startConnectionToProduct()
+        }
+        
+        print("Register App: \(message)")
+    }
+    
+    func didUpdateDatabaseDownloadProgress(_ progress: Progress) {
+        //Unused
+    }
 ~~~
 
-Firstly, we create the `- (DJICamera*) fetchCamera` method to fetch the updated DJICamera object. Before we get the return DJICamera object, we need to check if the product object of DJISDKManager is kind of **DJIAircraft** of **DJIHandheld** class. Since the camera component of the aircraft or handheld device may be changed or disconnected, we need to fetch the camera object everytime we want to use it to ensure we get the correct camera object.
+First we create the `- (DJICamera*) fetchCamera` method to fetch the updated DJICamera object. Before we get the return DJICamera object, we need to check if the product object of DJISDKManager is kind of **DJIAircraft** of **DJIHandheld** class. Since the camera component of the aircraft or handheld device may be changed or disconnected, we need to fetch the camera object everytime we want to use it to ensure we get the correct camera object.
 
 Then invoke the `setupVideoPreviewer` method to setup the DJIVideoPreviewer in the `productConnected` delegate method. Lastly, reset the `camera` instance's delegate to nil and invoke the `resetVideoPreview` method to reset the videoPreviewer in the `productDisconnected` and `viewWillDisappear` methods.
 
@@ -195,15 +229,6 @@ Then invoke the `setupVideoPreviewer` method to setup the DJIVideoPreviewer in t
     // MARK: DJICameraDelegate Method
     func camera(_ camera: DJICamera, didUpdate cameraState: DJICameraSystemState) {
         self.isRecording = cameraState.isRecording
-        self.recordTimeLabel.isHidden = !self.isRecording
-        
-        self.recordTimeLabel.text = formatSeconds(seconds: cameraState.currentVideoRecordingTimeInSeconds)
-        
-        if (self.isRecording == true) {
-            self.recordButton.setTitle("Stop Record", for: .normal)
-        } else {
-            self.recordButton.setTitle("Start Record", for: .normal)
-        }
         
         //Update UISegmented Control's State
         if (cameraState.mode == DJICameraMode.shootPhoto) {
@@ -219,6 +244,32 @@ Here, we use the `-(void)videoFeed:(DJIVideoFeed *)videoFeed didUpdateVideoData:
 
 Moreover, the `-(void) camera:(DJICamera*)camera didUpdateSystemState:(DJICameraSystemState*)systemState` method is used to get the camera state from the camera on your aircraft. It will be invoked frequently, so you can update your user interface or camera settings accordingly here.
 
+ Now we can implement the `changeWorkModeAction` IBAction method as follows:
+
+~~~Swift
+    @IBAction func workModeSegmentChange(_ sender: UISegmentedControl) {
+        guard let camera = fetchCamera() else {
+            return
+        }
+        
+       if (sender.selectedSegmentIndex == 0) {
+            camera.setMode(DJICameraMode.shootPhoto,  withCompletion: { (error) in
+                if let _ = error {
+                    NSLog("Set ShootPhoto Mode Error: " + String(describing: error))
+                }
+            })
+            
+        } else if (sender.selectedSegmentIndex == 1) {
+            camera.setMode(DJICameraMode.recordVideo,  withCompletion: { (error) in
+                if let _ = error {
+                    NSLog("Set RecordVideo Mode Error: " + String(describing: error))
+                }
+            })
+        }
+    }
+
+~~~
+
 ## Connecting to the Aircraft or Handheld Device
 
 Please check this [Connect Mobile Device and Run Application](../application-development-workflow/workflow-run.html#connect-mobile-device-and-run-application) guide to run the application and view the live video stream from your DJI product's camera based on what we've finished of the application so far!
@@ -226,6 +277,8 @@ Please check this [Connect Mobile Device and Run Application](../application-dev
 ## Enjoying the First Person View
 
 If you can see the live video stream in the application, congratulations! Let's move forward.
+
+Note that you may have to change the camera's mode before the fpv will show.
 
   ![fpv](../images/tutorials-and-samples/iOS/FPVDemo/fpv.jpg)
 
@@ -267,110 +320,13 @@ In the code above, we first invoke the following method of DJICamera to set the 
 
 ## Implementing the Record function
 
-### 1. Switching Camera Mode
+First, let's go to Main.storyboard and drag a UILabel on top of the screen, set up the Autolayout constraints for it and create an IBOutlet named `recordTimeLabel` in the **FPVViewController.swift** file.
 
-   Before we implement the record function, we need to switch the camera work mode first.
-
-   Let's check the DJICameraMode enum in **DJICameraSettingsDef.h** file.
-
-~~~objc
-/**
- *  Camera work modes.
- */
-typedef NS_ENUM (NSUInteger, DJICameraMode){
-
-    /**
-     *  Capture mode. In this mode, the user can capture pictures.
-     */
-    DJICameraModeShootPhoto = 0x00,
-
-    /**
-     *  Record mode. In this mode, the user can record videos.
-     */
-    DJICameraModeRecordVideo = 0x01,
-
-    /**
-     *  Playback mode. In this mode, the user can preview photos and videos, and can
-     *  delete files. It is supported by  Phantom 3 Profressional camera, X3, X5 and X5R
-     *  cameras on aircraft and Phantom 4 camera. Playback mode is not  supported by
-     *  Z30, X5S, X4S, Phantom 4 Pro, Mavic Pro, Phantom 3 Standard, Phantom 3 Advanced,
-     *  Phantom 3 4K and  Osmo series.
-     */
-    DJICameraModePlayback = 0x02,
-
-    /**
-     *  In this mode, the user can download media to the Mobile Device. Not supported by
-     *  X5 camera nor X5R camera while  mounted on aircraft.
-     */
-    DJICameraModeMediaDownload = 0x03,
-
-    /**
-     *  In this mode, live stream resolution and frame rate will be 1080i50 (PAL) or
-     *  720p60 (NTSC). In this mode videos can  be recorded. Still photos can also be
-     *  taken only when video is recording. The only way to exit broadcast mode is to
-     *  change modes to `DJICameraModeRecordVideo`. Only supported by Inspire 2.
-     */
-    DJICameraModeBroadcast = 0x04,
-
-    /**
-     *  The camera work mode is unknown.
-     */
-    DJICameraModeUnknown = 0xFF
-};
-~~~
-
-   You can see from above that there are 5 types of **DJICameraMode**. Here we use the first two types.
-
-   Remember we created a UISegment Control in the storyboard? We can update the state of the segmented control when switching between **DJICameraModeShootPhoto** and **DJICameraModeRecordVideo** using the previous delegate method like this:
+Then add a BOOL variable `isRecording` to **FPVViewController**. Be sure to hide the `recordTimeLabel` and register the app in the `viewDidLoad` method as well.
 
 ~~~Swift
-    func camera(_ camera: DJICamera, didUpdate cameraState: DJICameraSystemState) {
-        //Update UISegmented Control's State
-        if (cameraState.mode == DJICameraMode.shootPhoto) {
-            self.workModeSegmentControl.selectedSegmentIndex = 0
-        } else {
-            self.workModeSegmentControl.selectedSegmentIndex = 1
-        }
-    }
+    var isRecording!
 
-~~~
-
- Now we can implement the `changeWorkModeAction` IBAction method as follows:
-
-~~~Swift
-    @IBAction func workModeSegmentChange(_ sender: UISegmentedControl) {
-        guard let camera = fetchCamera() else {
-            return
-        }
-        
-       if (sender.selectedSegmentIndex == 0) {
-            camera.setMode(DJICameraMode.shootPhoto,  withCompletion: { (error) in
-                if let _ = error {
-                    NSLog("Set ShootPhoto Mode Error: " + String(describing: error))
-                }
-            })
-            
-        } else if (sender.selectedSegmentIndex == 1) {
-            camera.setMode(DJICameraMode.recordVideo,  withCompletion: { (error) in
-                if let _ = error {
-                    NSLog("Set RecordVideo Mode Error: " + String(describing: error))
-                }
-            })
-        }
-    }
-
-~~~
-
- In the code above, we invoke the
- `- (void)setMode:(DJICameraMode)mode withCompletion:(DJICompletionBlock)completion;` method of DJICamera to change the camera mode.  Here we add two UIAlertViews to show warnings when the user set `DJICameraMode` failed. //Um where did 
-
-### 2. Working on the Record Action
-
-  First, let's go to Main.storyboard and drag a UILabel on top of the screen, set up the Autolayout constraints for it and create an IBOutlet named `currentRecordTimeLabel` in the **FPVViewController.swift** file.
-
-  Then add a BOOL variable `isRecording` to **FPVViewController**. Be sure to hide the `currentRecordTimeLabel` and register the app in the `viewDidLoad` method as well.
-
-~~~Swift
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -379,7 +335,7 @@ typedef NS_ENUM (NSUInteger, DJICameraMode){
     }
 ~~~
 
-We can update the bool value for `isRecording` and `currentRecordTimeLabel`'s text value in the following delegate method:
+We can update the bool value for `isRecording` and `recordTimeLabel`'s text value in the following delegate method:
 
 ~~~Swift
     func camera(_ camera: DJICamera, didUpdate cameraState: DJICameraSystemState) {
@@ -401,7 +357,6 @@ We can update the bool value for `isRecording` and `currentRecordTimeLabel`'s te
             self.workModeSegmentControl.selectedSegmentIndex = 1
         }
     }
-
 ~~~
 
    Because the text value of `currentRecordingTime` is counted in seconds, so we need to convert it to "mm:ss" format like this:
@@ -416,7 +371,7 @@ We can update the bool value for `isRecording` and `currentRecordTimeLabel`'s te
     }
 ~~~
 
-   Next, add the following codes to the `recordAction` IBAction method as follows:
+   Next, add the following code to the `recordAction` IBAction method as follows:
 
 ~~~Swift
     @IBAction func recordAction(_ sender: UIButton) {
