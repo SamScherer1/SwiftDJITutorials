@@ -124,13 +124,12 @@ Go back to the RootViewController.swift file and create a MapController property
 Once that is complete, open the RootViewController.m file, initialize the **mapController** and **tapGesture** variables, and add the **tapGesture** to mapView to add waypoints. Furthermore, we need a boolean variable named "**isEditingPoints**" to store the edit waypoint state, which will also change the title of **editBtn** accordingly. Lastly, implement tapGesture's action method **addWayPoints**, as shown below:
 
 ~~~Swift
-class RootViewController : UIViewController, MKMapViewDelegate {
+class RootViewController : UIViewController, DJISDKManagerDelegate, MKMapViewDelegate {
 
     var isEditingPoints = false
     @IBOutlet weak var mapView: MKMapView!
 
     //MARK: Custom Methods
-
     @objc func addWaypoints(tapGesture:UITapGestureRecognizer) {
         let point = tapGesture.location(in: self.mapView)
         if tapGesture.state == UIGestureRecognizer.State.ended {
@@ -169,10 +168,10 @@ Open the RootViewController.swift file and import CoreLocation. Create a CLLocat
 import Foundation
 import UIKit
 import MapKit
-import CoreLocation
 import DJISDK
+import CoreLocation
 
-class RootViewController : UIViewController, MKMapViewDelegate, CLLocationManagerDelegate {
+class RootViewController : UIViewController, DJISDKManagerDelegate, MKMapViewDelegate, CLLocationManagerDelegate {
 
     var isEditingPoints = false
     var locationManager : CLLocationManager?
@@ -181,18 +180,22 @@ class RootViewController : UIViewController, MKMapViewDelegate, CLLocationManage
     @IBOutlet weak var mapView: MKMapView!
     @IBOutlet weak var editBtn: UIButton!
 
-    @IBAction func editBtnAction(_ sender: Any) {
-        if self.isEditingPoints {
-            self.mapController?.cleanAllPoints(with:self.mapView)
-            self.editBtn.setTitle("Edit", for: .normal)
-        } else {
-            self.editBtn.setTitle("Reset", for: .normal)
-        }
-        self.isEditingPoints = !self.isEditingPoints
-    }
 
     @IBAction func focusMapBtnAction(_ sender: Any) {
-        self.delegate?.focusMapBtnActionIn(gsBtnVC: self)
+        self.focusMap()
+    }
+    
+    func focusMap() {
+        guard let userLocation = self.userLocation else {
+            return
+        }
+        
+        if CLLocationCoordinate2DIsValid(userLocation) {
+            let center = CLLocationCoordinate2D(latitude: userLocation.latitude, longitude: userLocation.longitude)
+            let span = MKCoordinateSpan(latitudeDelta: 0.001, longitudeDelta: 0.001)
+            let region = MKCoordinateRegion(center: center, span: span)
+            self.mapView.setRegion(region, animated: true)
+        }
     }
 }
 ~~~
@@ -214,12 +217,6 @@ Now go back to RootViewController.swift and add the following code:
         self.locationManager?.stopUpdatingLocation()
     }
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        self.registerApp()
-        self.initUI()
-        self.initData()
-    }
 
     func prefersStatusBarHidden() -> Bool {
         return false
@@ -239,19 +236,6 @@ Now go back to RootViewController.swift and add the following code:
             showAlertWith("Location Service is not available")
         }
     }
-    //TODO: used to be directly called by action...
-    func focusMap() {
-        guard let droneLocation = self.droneLocation else {
-            return
-        }
-        
-        if CLLocationCoordinate2DIsValid(droneLocation) {
-            let center = CLLocationCoordinate2D(latitude: droneLocation.latitude, longitude: droneLocation.longitude)
-            let span = MKCoordinateSpan(latitudeDelta: 0.001, longitudeDelta: 0.001)
-            let region = MKCoordinateRegion(center: center, span: span)
-            self.mapView.setRegion(region, animated: true)
-        }
-    }
 
     //MARK:  - CLLocationManagerDelegate
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -262,8 +246,34 @@ Now go back to RootViewController.swift and add the following code:
 
 First, we initialize **userLocation** data to kCLLocationCoordinate2DInvalid in the viewDidLoad method. Then we add a new method named as "startUpdateLocation" to initialize **locationManger**, set its properties and start updating location. If the Location Service is not available, we add a UIAlertView to display the warning. The **startUpdateLocation** is called in viewWillAppear method and is stopped in the viewWillDisappear method. Moreover, we need to implement CLLocationManagerDelegate method to update **userLocation** property. Finally, we implement the "focusMapAction" method to focus **mapView** to the user's current location.
 
-In iOS8, we must call **locationManager**'s **requestAlwaysAuthorization** first, which was done in **startUpdateLocation** method.
+There is a "DemoUtility" that defines methods such as `showAlertWith()` that will be used frequently in the project. Let's implement it now. Create a new swift file and named it as "DemoUtility.swift", replace its content with the following:
 
+~~~Swift
+import Foundation
+import DJISDK
+
+extension FloatingPoint {
+    var degreesToRadians: Self { self * .pi / 180 }
+}
+
+func showAlertWith(_ result:String) {
+    DispatchQueue.main.async {
+        let alertViewController = UIAlertController(title: nil, message: result as String, preferredStyle: UIAlertController.Style.alert)
+        let okAction = UIAlertAction.init(title: "OK", style: UIAlertAction.Style.default, handler: nil)
+        alertViewController.addAction(okAction)
+        let rootViewController = UIApplication.shared.keyWindow?.rootViewController
+        rootViewController?.present(alertViewController, animated: true, completion: nil)
+    }
+}
+
+func fetchFlightController() -> DJIFlightController? {
+    if let aircraft = DJISDKManager.product() as? DJIAircraft {
+        return aircraft.flightController
+    }
+    return nil
+}
+
+~~~
 Next, add a "Privacy - Location Always Usage Description" or "Privacy - Location When In Use Usage Description" key to your project’s Info.plist containing the message to be displayed to the user when a UIAlert asking whether or not they want to allow the application to use their location. We set the messages empty here:
 
 ![infoPlist](../images/tutorials-and-samples/iOS/GSDemo/infoPlist.png)
@@ -278,7 +288,7 @@ Now, we can focus the mapView to our current location, which is a good start! Ho
 
 You can check the [DJI Assistant 2 Simulator](../application-development-workflow/workflow-testing.html#dji-assistant-2-simulator) for its basic usage. If you want to place the aircraft in your current GPS location on Map View, you can set the latitude and longitude values in the **Simulator Config** to yours. We take the simulator's initial values in the following example.
 
-Let's come back to the code. Create a new subclass of **MKAnnotationView** named "AircraftAnnotationView" and a new subclass of NSObject named **DJIAircraftAnnotation**. Below is the code:
+Let's come back to the code. Create a new subclass of **MKAnnotationView** named "AircraftAnnotationView" and a new subclass of NSObject named **AircraftAnnotation**. Below is the code:
 
 - AircraftAnnotationView.swift
 
@@ -332,13 +342,13 @@ class AircraftAnnotation : NSObject, MKAnnotation {
 
 The **AircraftAnnotation** class implements the **MKAnnotation** protocol. It's used to store and update a CLLocationCoordinate2D property. Also, we can update AircraftAnnotationView's heading with the **updateHeading** method.
 
-Then create a property of an instance of AircraftAnnotation and name it **aircraftAnnotation**.
+Create a property of type AircraftAnnotation in MapController and name it **aircraftAnnotation**.
 
 ~~~Swift
     var aircraftAnnotation : AircraftAnnotation?
 ~~~
 
-Furthermore, add two new methods to update the aircraft's location and it's heading on the map.
+Furthermore, add two new methods to update the aircraft's location and its heading on the map.
 
 ~~~Swift
     func updateAircraft(location:CLLocationCoordinate2D, with mapView:MKMapView) {
@@ -357,7 +367,7 @@ Furthermore, add two new methods to update the aircraft's location and it's head
     }
 ~~~
 
-Also, since we don't want the **aircraftAnnotation** removed by the **cleanAllPointsWithMapView** method in the DJIMapController.m file, we need to modify it, as shown below:
+Also, since we don't want the **aircraftAnnotation** removed by the **cleanAllPointsWithMapView** method in the MapController.swift file, we need to modify it, as shown below:
 
 ~~~Swift
     func cleanAllPoints(with mapView: MKMapView) {
@@ -397,7 +407,7 @@ class RootViewController : UIViewController, MKMapViewDelegate, CLLocationManage
 
 ~~~
 
-Now, let's initialize the UI elements' values in a new method called **initUI**. Call the initUI method in the viewDidLoad method. Lastly, create a new method named "registerApp" and invoke it in the viewDidLoad method to register the app as shown below:
+Now, let's initialize the location data for RootViewController a new method called **initData**. Call the initData method in the viewDidLoad method. Lastly, make sure you register your app in the viewDidLoad() method too.
 
 ~~~Swift
 
@@ -416,14 +426,6 @@ Now, let's initialize the UI elements' values in a new method called **initUI**.
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(addWaypoints(tapGesture:)))
         self.mapView.addGestureRecognizer(tapGesture)
     }
-
-    func initData() {
-        self.userLocation = kCLLocationCoordinate2DInvalid
-        self.droneLocation = kCLLocationCoordinate2DInvalid
-        self.mapController = MapController()
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(addWaypoints(tapGesture:)))
-        self.mapView.addGestureRecognizer(tapGesture)
-    }
 ~~~
 
 Next, implement the "DJISDKManagerDelegate" method as follows:
@@ -436,11 +438,7 @@ Next, implement the "DJISDKManagerDelegate" method as follows:
             let registerResult = "Registration Error: \(error.localizedDescription)"
             showAlertWith(registerResult)
         } else {
-            if useBridgeMode {
-                DJISDKManager.enableBridgeMode(withBridgeAppIP: bridgeIPString)
-            } else {
-                DJISDKManager.startConnectionToProduct()
-            }
+            DJISDKManager.startConnectionToProduct()
         }
     }
 
@@ -463,34 +461,6 @@ Next, implement the "DJISDKManagerDelegate" method as follows:
 
 In the code above, we can implement DJISDKManager's `appRegisteredWithError:` delegate method to check the register status and invoke the DJISDKManager's "startConnectionToProduct" method to connect to the aircraft. Moreover, the `productConnected:` delegate method will be invoked when the product connectivity status changes, so we can set DJIFlightController's delegate as RootViewController here when product is connected.
 
-You may notice that there is a "DemoUtility" file here, that defines methods that will be used frequently in the project. Let's implement it now. Create a new swift file and named it as "DemoUtility", replace its .h file and .m file with the followings:
-
-~~~Swift
-import Foundation
-import DJISDK
-
-extension FloatingPoint {
-    var degreesToRadians: Self { self * .pi / 180 }
-}
-
-func showAlertWith(_ result:String) {
-    DispatchQueue.main.async {
-        let alertViewController = UIAlertController(title: nil, message: result as String, preferredStyle: UIAlertController.Style.alert)
-        let okAction = UIAlertAction.init(title: "OK", style: UIAlertAction.Style.default, handler: nil)
-        alertViewController.addAction(okAction)
-        let rootViewController = UIApplication.shared.keyWindow?.rootViewController
-        rootViewController?.present(alertViewController, animated: true, completion: nil)
-    }
-}
-
-func fetchFlightController() -> DJIFlightController? {
-    if let aircraft = DJISDKManager.product() as? DJIAircraft {
-        return aircraft.flightController
-    }
-    return nil
-}
-
-~~~
 
 Then in the **viewWillDisappear** method of RootViewController, we need to invoke the "stopUpdatingLocation" method of CLLocationManager to stop update location as shown below:
 
@@ -501,10 +471,9 @@ Then in the **viewWillDisappear** method of RootViewController, we need to invok
     }
 ~~~
 
-Also, update(TODO:what did it look like before?) the **focusMapAction** method to set **droneLocation** as the center of the map view's region, as shown below:
+Also, update **focusMap** to set **droneLocation** as the center of the map view's region, as shown below:
 
 ~~~Swift
-//TODO: again, need to account for getting called from ButtonVC
     func focusMap() {
         guard let droneLocation = self.droneLocation else {
             return
@@ -519,7 +488,7 @@ Also, update(TODO:what did it look like before?) the **focusMapAction** method t
     }
 ~~~
 
-Next, We need to modify the **MKMapViewDelegate** method to what is shown below. It will check the annotation variable's class and set its annotationView as a **AircraftAnnotationView** Class type object:
+Next, We need to modify the **MKMapViewDelegate** method to what is shown below. It will set the annotation's annotationView to a **AircraftAnnotationView** Class type object if it's an AircraftAnnotation:
 
 ~~~Swift
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
