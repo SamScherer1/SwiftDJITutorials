@@ -348,7 +348,7 @@ In the code above, we implement the following things:
 
 1. In the `viewWillAppear` method, we invoke the `fetchCamera` method of **DemoUtility** class to fetch the DJICamera object. Then check if the camera is nil, if not set its delegate as `MediaManagerViewController`, also initialize the `mediaManager` and set its delegate as `MediaManagerViewController`. Furthermore, invoke  **DJICamera**'s `setMode:withCompletion:` method with the `DJICameraMode.shootPhoto` param to switch the camera mode to media download mode.
 
-2. Similarly, in the `viewWillDisappear` method, we also invoke **DJICamera**'s' `setMode:withCompletion:` method with `DJICameraModeShootPhoto` to switch the camera mode to shoot photo mode. Then reset DJICamera and DJIMediaManager's delegates so when the user enters the **MediaManagerViewController**, the DJICamera will switch to media download mode automatically and when the user exits back to the **DefaultLayoutViewController**, the DJICamera will switch to shoot photo mode.
+2. Similarly, in the `viewWillDisappear` method, we also invoke **DJICamera**'s `setMode:withCompletion:` method with `DJICameraModeShootPhoto` to switch the camera mode to shoot photo mode. Then reset DJICamera and DJIMediaManager's delegates so when the user enters the **MediaManagerViewController**, the DJICamera will switch to media download mode automatically and when the user exits back to the **DefaultLayoutViewController**, the DJICamera will switch to shoot photo mode.
 
 ## Refreshing Media File List
 
