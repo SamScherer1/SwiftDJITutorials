@@ -96,11 +96,13 @@ class MapController : NSObject {
 }
 ~~~
 
-Here, we create an NSMutableArray called **editPoints** to store waypoint objects and add two methods to implement **Add** and **Remove** waypoints. The last method will be used to return the current waypoint objects on the map in an array.
+Create an NSMutableArray called **editPoints** to store waypoint objects amd initialize it in the init method.
 
-Then, we initialize the **editPoints** array in the init method, then create MKPointAnnotation objects from CGPoint and add them to our **mapView**, and finally implement the **cleanAllPointsWithMapView** method to clean up the **editPoints** array and the annotations on the mapView.
+Implement a method to **Add** waypoints: create MKPointAnnotation objects from CGPoints and add them to our **mapView**.
 
-Go back to the RootViewController.swift file and create a MapController property named **mapController**. Since we want to add annotation pins by tapping on the map, we also need to create a UITapGestureRecognizer named **tapGesture** (TODO:this is no longer a property, moved into initData()). Lastly, add a UIButton to the RootViewController scene in Main.storyboard, set its IBOutlet name as "**editBtn**", and add an IBAction method named "**editBtnAction**" for it, as shown below:
+Implement the **cleanAllPoints(with mapView:)** method to clean up the **editPoints** array and the annotations on the mapView.
+
+Go back to the RootViewController.swift file and create a MapController property named **mapController**. Lastly, add a UIButton to the RootViewController scene in Main.storyboard, set its IBOutlet name as "**editBtn**", add a boolean property called isEditingPoints and add an IBAction method named "**editBtnAction**" for it, as shown below:
 
 ~~~Swift
     var mapController : MapController?
@@ -108,8 +110,12 @@ Go back to the RootViewController.swift file and create a MapController property
     @IBOutlet weak var editBtn: UIButton!
 
     @IBAction func editBtnAction(_ sender: Any) {
-        self.setMode(mode: GSViewMode.edit)
-        self.delegate?.switchTo(mode: self.mode, inGSBtnVC: self)
+        if self.isEditingPoints {
+            self.mapController?.cleanAllPoints(with:self.mapView)
+            self.editBtn.setTitle("Edit", for: .normal)
+        } else {
+            self.editBtn.setTitle("Reset", for: .normal)
+        }
     }
 ~~~
 
@@ -123,14 +129,7 @@ class RootViewController : UIViewController, MKMapViewDelegate {
     var isEditingPoints = false
     @IBOutlet weak var mapView: MKMapView!
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        self.registerApp()
-        self.initUI()
-        self.initData()
-    }
-
-#pragma mark Custom Methods
+    //MARK: Custom Methods
 
     @objc func addWaypoints(tapGesture:UITapGestureRecognizer) {
         let point = tapGesture.location(in: self.mapView)
@@ -141,22 +140,12 @@ class RootViewController : UIViewController, MKMapViewDelegate {
         }
     }
 
-    //TODO: pasted from GSButtonViewController, might need to be modified to work in RootVC...
-    @IBAction func editBtnAction(_ sender: Any) {
-        self.setMode(mode: GSViewMode.edit)
-        self.delegate?.switchTo(mode: self.mode, inGSBtnVC: self)
-    }
-
     //MARK:  MKMapViewDelegate Method
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
         if annotation.isKind(of: MKPointAnnotation.self) {
             let pinView = MKPinAnnotationView(annotation: annotation, reuseIdentifier: "Pin_Annotation")
             pinView.pinTintColor = UIColor.purple
             return pinView
-        } else if annotation.isKind(of: AircraftAnnotation.self) {
-            let annotationView = AircraftAnnotationView(annotation: annotation, reuseIdentifier: "Aircraft_Annotation")
-            (annotation as? AircraftAnnotation)?.annotationView = annotationView
-            return annotationView
         }
         return nil
     }
@@ -164,10 +153,7 @@ class RootViewController : UIViewController, MKMapViewDelegate {
 
 ~~~
 
-In the above code, we also added an NSNotification observer to check the DJI Mobile SDK's state, to make sure it was sucessfully registered. At the same time, we implement the **addWaypoints** gesture action by calling DJIMapController's
-
-     func add(point:CGPoint, for mapView:MKMapView)
-method to add waypoints to the map. Next, we implement the IBAction method **editBtn**, which will update the button's title and clean up waypoints based on the value of **isEditingPoints**. Finally, we implement MKMapViewDelegate's method to change the pin color to purple.
+In the above code, we also added an NSNotification observer to check the DJI Mobile SDK's state and make sure it was sucessfully registered. At the same time, we implement the **addWaypoints** gesture action by calling DJIMapController's add(point:CGPoint, for mapView:) method to add waypoints to the map. Next, we implement the IBAction method **editBtn**, which will update the button's title and clean up waypoints based on the value of **isEditingPoints**. Finally, we implement MKMapViewDelegate's method to change the pin color to purple.
 
 When you are done with all the steps above, build and run your project and try to add waypoints on the map. If everything is fine, you will see the following animation:
 
@@ -196,9 +182,15 @@ class RootViewController : UIViewController, MKMapViewDelegate, CLLocationManage
     @IBOutlet weak var editBtn: UIButton!
 
     @IBAction func editBtnAction(_ sender: Any) {
-        self.setMode(mode: GSViewMode.edit)
-        self.delegate?.switchTo(mode: self.mode, inGSBtnVC: self)
+        if self.isEditingPoints {
+            self.mapController?.cleanAllPoints(with:self.mapView)
+            self.editBtn.setTitle("Edit", for: .normal)
+        } else {
+            self.editBtn.setTitle("Reset", for: .normal)
+        }
+        self.isEditingPoints = !self.isEditingPoints
     }
+
     @IBAction func focusMapBtnAction(_ sender: Any) {
         self.delegate?.focusMapBtnActionIn(gsBtnVC: self)
     }
@@ -233,7 +225,6 @@ Now go back to RootViewController.swift and add the following code:
         return false
     }
 
-#pragma mark CLLocation Methods
     //MARK:  CLLocation Methods
     func startUpdateLocation() {
         if CLLocationManager.locationServicesEnabled() {
@@ -419,15 +410,11 @@ Now, let's initialize the UI elements' values in a new method called **initUI**.
         self.mapView.addGestureRecognizer(tapGesture)
     }
 
-    func registerApp() {
-        DJISDKManager.registerApp(with: self)
-    }
-
     override func viewDidLoad() {
         super.viewDidLoad()
-        self.registerApp()
-        self.initUI()
-        self.initData()
+        DJISDKManager.registerApp(with: self)
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(addWaypoints(tapGesture:)))
+        self.mapView.addGestureRecognizer(tapGesture)
     }
 
     func initData() {
