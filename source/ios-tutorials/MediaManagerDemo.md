@@ -53,25 +53,27 @@ Congratulations! We can move forward now.
 
 ## Working on the UI of the Application
 
-Now, to create a new file, choose the "Cocoa Touch Class" template and choose **UIViewController** as its subclass, name it as "MediaManagerViewController". We will use it to implement the Media Manager features.
+Now, create a new file, choose the "Swift file" template and name it as "MediaManagerViewController". We will use it to implement the Media Manager features.
 
-Next, open the **Main.storyboard** file and drag and drop a new "View Controller" object from the Object Library and set its "Class" value as **MediaManagerViewController**.
+Open the **Main.storyboard** file and drag and drop a new "View Controller" object from the Object Library and set its "Class" value as **MediaManagerViewController**.
 
-Moreover, drag and drop a new "Container View" object in the **MediaManagerViewController** and set its ViewController's "Class" value as **DUXFPVViewController**, which contains a `DUXFPVView` and will show the video playback.
+Drag and drop a new "Container View" object in the **MediaManagerViewController** and set its ViewController's "Class" value as **DUXFPVViewController**, which contains a `DUXFPVView` and will show the video playback.
 
-Furthermore, drag and drop a UIImageView object on top of the "Container View" and hide it as default, we will use it to show the downloaded photo. Moreover, drag and drop eleven UIButton objects, one UITextField, one UITableView and a UIActivityIndicatorView, place them in the following positions:
+Drag and drop a UIImageView object on top of the "Container View" and hide it by default. We will use it to show the downloaded photo. 
+
+Drag and drop eleven UIButton objects, one UITextField, one UITableView and a UIActivityIndicatorView and place them in the following positions:
 
 ![mediaManagerVCUI](../images/tutorials-and-samples/iOS/MediaManagerDemo/mediaManagerVCUI.png)
 
 The layout of the UI elements is a bit complicated, for more details of the configuration, please check the **Main.storyboard** in this tutorial's Github Sample Project.
 
-Lastly, drag and place a UIButton on the bottom right corner of the **DefaultLayoutViewController** view and create a segue to show the **MediaManagerViewController** when the user press the button.
+Lastly, place a UIButton on the bottom right corner of the **DefaultLayoutViewController** view and create a segue to the **MediaManagerViewController** when the user presses the button.
 
 If everything goes well, you should see the whole storyboard layout like this:
 
 ![mediaManagerVCUI](../images/tutorials-and-samples/iOS/MediaManagerDemo/storyboardUI.png)
 
-Once you finish the above steps, open the "DefaultLayoutViewController.swift"(TODO: where was it created?) file and replace the content with the followings:
+Once you finish the above steps, open the "DefaultLayoutViewController.swift" file and replace the content with the following:
 
 ~~~swift
 import Foundation
@@ -96,7 +98,7 @@ class DefaultLayoutViewController: DUXDefaultLayoutViewController {
 
 In the code above, we create an IBOutlet property for the `mediaDownloadBtn` and set its image in the `viewDidLoad` method. You can get the "mediaDownload_icon.png" and  "mediaDownload_icon_iPad.png" files from this tutorial's Github Sample Project.
 
-Next, open the "MediaManagerViewController.swift"(TODO:again, created where?) file and replace the content with the followings:
+Next, open the "MediaManagerViewController.swift" file and replace the content with the following:
 
 ~~~swift
 import Foundation
@@ -147,6 +149,60 @@ class MediaManagerViewController : UIViewController, DJICameraDelegate, DJIMedia
             self.setupVideoPreviewer()
         }
     }
+
+    func setupRenderViewPlaybacker() {
+        //Support Video Playback for Phantom 4 Professional, Inspire 2
+        var encoderType = H264EncoderType._unknown
+        if let camera = fetchCamera() {
+            if camera.displayName == DJICameraDisplayNamePhantom4ProCamera ||
+               camera.displayName == DJICameraDisplayNamePhantom4AdvancedCamera ||
+               camera.displayName == DJICameraDisplayNameX4S ||
+               camera.displayName == DJICameraDisplayNameX5S { //Phantom 4 Professional, Phantom 4 Advanced and Inspire 2
+                encoderType = H264EncoderType._H1_Inspire2
+            }
+        }
+        self.renderView = DJIRTPlayerRenderView(decoderType: LiveStreamDecodeType.vtHardware,
+                                                encoderType: encoderType)
+        guard self.renderView != nil else {
+            return
+        }
+        self.renderView!.frame = self.videoPreviewContainerView.bounds
+        self.videoPreviewContainerView.addSubview(self.renderView!)
+        self.renderView?.isHidden = true
+    }
+
+    func setupVideoPreviewer() {
+        self.videoPreviewView = UIView(frame: self.videoPreviewContainerView.bounds)
+        self.videoPreviewContainerView.addSubview(self.videoPreviewView!)
+        DJIVideoPreviewer.instance().type = DJIVideoPreviewerType.autoAdapt
+        DJIVideoPreviewer.instance()?.start()
+        DJIVideoPreviewer.instance()?.reset()
+        DJIVideoPreviewer.instance()?.setView(self.videoPreviewView)
+        self.previewerAdapter = VideoPreviewerAdapter()
+        self.previewerAdapter?.start()
+
+        #if targetEnvironment(simulator)
+        DJIVideoPreviewer.instance().enableHardwareDecode = true
+        #endif
+        
+        self.previewerAdapter?.setupFrameControlHandler()
+    }
+
+    func hasPlaybackFor(cameraName:String) -> Bool {
+        return cameraName == DJICameraDisplayNamePhantom4Camera ||
+               cameraName == DJICameraDisplayNamePhantom4ProCamera ||
+               cameraName == DJICameraDisplayNamePhantom4AdvancedCamera ||
+               cameraName == DJICameraDisplayNameX4S ||
+               cameraName == DJICameraDisplayNameX5S ||
+               cameraName == DJICameraDisplayNameX7 ||
+               cameraName == DJICameraDisplayNameX3 ||
+               cameraName == DJICameraDisplayNameXT ||
+               cameraName == DJICameraDisplayNameZ3 ||
+               cameraName == DJICameraDisplayNameZ30 ||
+               cameraName == DJICameraDisplayNameXT2Visual ||
+               cameraName == DJICameraDisplayNameXT2Thermal ||
+               cameraName == DJICameraDisplayNamePhantom3AdvancedCamera
+    }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
@@ -191,15 +247,14 @@ class MediaManagerViewController : UIViewController, DJICameraDelegate, DJIMedia
         self.cancelBtn.isEnabled = false
     }
 
-    @IBAction func reloadBtnAction(_ sender: Any) {
-        self.loadMediaList()
-    }
-
     @IBAction func statusBtnAction(_ sender: Any) {
         self.statusView?.isHidden = false
         self.statusView?.show()
     }
-    
+
+    @IBAction func reloadBtnAction(_ sender: Any) {
+
+    }
     
     @IBAction func downloadBtnAction(_ sender: Any) {
     
@@ -227,31 +282,30 @@ class MediaManagerViewController : UIViewController, DJICameraDelegate, DJIMedia
     @IBAction func showStatusBtnAction(_ sender: Any) {
     
     }
+}
 ~~~
 
 In the code above, we implement the following things:
 
-1. First we define the IBOutlet properties for the UI elements, like UIButton, UITableView, UITextField, etc.
+1. We define the IBOutlet properties for the UI elements, like UIButton, UITableView, UITextField, etc.
 
-2. Next, we implement the `viewDidLoad` method, and invoke the `initData` method to disable the `deleteBtn`, `cancelBtn`, `reloadBtn` and `editBtn` initially.
+2. We implement the `viewDidLoad` method, and invoke the `initData` method to disable the `deleteBtn`, `cancelBtn`, `reloadBtn` and `editBtn` initially.
 
-3. Lastly, we implement the IBAction methods for all the UIButtons. For the `backBtnAction` method, we invoke the `popViewControllerAnimated` method of UINavigationController to go back to the `DefaultLayoutViewController`.
+3. We implement the IBAction methods for all the UIButtons. For the `backBtnAction` method, we invoke the `popViewControllerAnimated` method of UINavigationController to go back to the `DefaultLayoutViewController`.
 
-For the `editBtnAction` method, we make `mediaTableView` go into editing mode by invoking `setEditing:animated:` method of UITableView. Then enable the `deleteBtn` and `cancelBtn` buttons, disable the `editBtn` button.
+4. For the `editBtnAction` method, we make `mediaTableView` enter editing mode by invoking `setEditing:animated:`, enable `deleteBtn`, enable `cancelBtn` and disable `editBtn`.
 
-For the `cancelBtnAction` method, on contract, we disable the editing mode of `mediaTableView` and enable the `editBtn` button, also disable the `deleteBtn` and `cancelBtn` buttons. We will implement the other IBAction methods later.
+5. For the `cancelBtnAction` method we disable the editing mode of `mediaTableView`, enable the `editBtn` button, disable `deleteBtn` and disable `cancelBtn`. We will implement the other IBAction methods later.
 
 ## Switching to Media Download Mode
 
-In order to preview, edit or download the photos or videos files from the DJICamera, you need to use the `DJIPlaybackManager` or `DJIMediaManager` of DJICamera. Here, we use `DJIMediaManager` to demonstrate how to implement it.
+In order to preview, edit or download the photos or videos files from the DJICamera, you need to use the `DJIPlaybackManager` or `DJIMediaManager` of `DJICamera`. Here, we use `DJIMediaManager`.
 
-Now, create a property of `DJIMediaManager` in the class extension part and implement the `viewWillAppear:` and `viewWillDisappear:` methods as shown below:
+Now, create a property of type `DJIMediaManager` and implement the `viewWillAppear:` and `viewWillDisappear:` methods as shown below:
 
 ~~~swift
     weak var mediaManager : DJIMediaManager?
-~~~
 
-~~~swift
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         let optionalCamera = fetchCamera()
@@ -292,9 +346,9 @@ Now, create a property of `DJIMediaManager` in the class extension part and impl
 
 In the code above, we implement the following things:
 
-1. In the `viewWillAppear` method, we firstly invoke the `fetchCamera` method of **DemoUtility** class to fetch the DJICamera object. Then check if the camera is nil, if not set its delegate as `MediaManagerViewController`, also initialize the `mediaManager` and set its delegate as `MediaManagerViewController`. Furthermore, invoke the `setMode:withCompletion:` method of **DJICamera** and pass the `DJICameraMode.shootPhoto` param to switch the camera mode to media download mode.
+1. In the `viewWillAppear` method, we invoke the `fetchCamera` method of **DemoUtility** class to fetch the DJICamera object. Then check if the camera is nil, if not set its delegate as `MediaManagerViewController`, also initialize the `mediaManager` and set its delegate as `MediaManagerViewController`. Furthermore, invoke  **DJICamera**'s `setMode:withCompletion:` method with the `DJICameraMode.shootPhoto` param to switch the camera mode to media download mode.
 
-2. Similarly, in the `viewWillDisappear` method, we also invoke the `setMode:withCompletion:` method of **DJICamera** and pass the `DJICameraModeShootPhoto` param to switch the camera mode to shoot photo mode. Then reset the delegates of DJICamera and DJIMediaManager. So when the user enter the **MediaManagerViewController**, the DJICamera will switch to media download mode automatically, when user exit back to the **DefaultLayoutViewController**, the DJICamera will switch to shoot photo mode.
+2. Similarly, in the `viewWillDisappear` method, we also invoke **DJICamera**'s' `setMode:withCompletion:` method with `DJICameraModeShootPhoto` to switch the camera mode to shoot photo mode. Then reset DJICamera and DJIMediaManager's delegates so when the user enters the **MediaManagerViewController**, the DJICamera will switch to media download mode automatically and when the user exits back to the **DefaultLayoutViewController**, the DJICamera will switch to shoot photo mode.
 
 ## Refreshing Media File List
 
@@ -305,16 +359,14 @@ Create the following properties and initialize them in the `initData` method:
 ~~~swift
     var mediaList : [DJIMediaFile]?
     var selectedCellIndexPath : IndexPath?
-~~~
 
-~~~swift
     func initData() {
         self.mediaList = [DJIMediaFile]()
         ...
     }
 ~~~
 
-Next, create two new methods: `loadMediaList` and `updateMediaList:` and invoke the `loadMediaList` method at the bottom of `viewWillAppear:` method and `reloadBtnAction:` IBAction method:
+Next, create two new methods: `loadMediaList` and `updateMediaList:` and invoke the `loadMediaList` method at the bottom of `viewWillAppear:` method and in the `reloadBtnAction:` IBAction method:
 
 ~~~swift
     override func viewWillAppear(_ animated: Bool) {
@@ -370,13 +422,13 @@ Next, create two new methods: `loadMediaList` and `updateMediaList:` and invoke 
 ~~~
 
 The code above implements:
-1. In the `loadMediaList` method, we first show the `loadingIndicator` and check the `fileListState` enum value of the `DJIMediaManager`. If the value is `DJIMediaFileListStateSyncing` or `DJIMediaFileListStateDeleting`, we show an log to inform users that the media manager is busy. For other values, we invoke the `refreshFileList(ofStorageLocation: withCompletion:)` method of `DJIMediaManager` to refresh the file list from the SD card. In the completion closure, if there is no error, we should get a copy of the current file list by invoking the `sdCardFileListSnapshot` method of `DJIMediaManager` and initialize the `mediaFileList` variable. Then invoke the `updateMediaList:` method and pass the `mediaFileList`. Finally, hide the `loadingIndicator` since the operation of refreshing the file list has finished.
+1.  In the `loadMediaList` method, we first show the `loadingIndicator` and check the `fileListState` of the `DJIMediaManager`. If the state is `DJIMediaFileListStateSyncing` or `DJIMediaFileListStateDeleting`, we show a log to inform users that the media manager is busy. For other values, we invoke the `refreshFileList(ofStorageLocation: withCompletion:)` method of `DJIMediaManager` to refresh the file list from the SD card. In the completion closure, if there is no error, we get a copy of the current file list by invoking the `sdCardFileListSnapshot` method of `DJIMediaManager` and initialize the `mediaFileList` variable. Then invoke the `updateMediaList:` method and pass the `mediaFileList`. Finally, hide the `loadingIndicator` since the operation of refreshing the file list has finished.
 
-2. In the `updateMediaList:` method, we firstly remove all the objects in the `mediaList` array and add new objects to it from the `mediaList` array. Next, create a `mediaTaskScheduler` variable and assign it with the `taskScheduler` property of `DJIMediaManager`. Then, assign `NO` to the `suspendAfterSingleFetchTaskFailure` property of `DJIFetchMediaTaskScheduler` to prevent from suspending the scheduler when an error occurs during the execution. Moreover, invoke the `resumeWithCompletion` method of `DJIFetchMediaTaskScheduler` to resume the scheduler, which will execute tasks in the queue sequentially.
+2.  In the `updateMediaList:` method, we remove all the objects in the `mediaList` array and add new objects to it from the `mediaList` array. Next, create a `mediaTaskScheduler` variable and set it to the `taskScheduler` property of `DJIMediaManager`. Then, set `DJIFetchMediaTaskScheduler`'s `suspendAfterSingleFetchTaskFailure` property to `false` to the of to prevent it from suspending the scheduler when an error occurs during the execution. Moreover, invoke the `resumeWithCompletion` method of `DJIFetchMediaTaskScheduler` to resume the scheduler, which will execute tasks in the queue sequentially.
 
-Furthermore, create a for loop to loop through all the `DJIMediaFile` variables in the `mediaList` array and invoke the `taskWithFile:content:andCompletion:` method of `DJIFetchMediaTaskScheduler` by passing the `file` variable and `DJIFetchMediaTaskContentThumbnail` value to ask the scheduler to download the thumbnail of the media file.
+    Create a for loop to loop through all the `DJIMediaFile` variables in the `mediaList` array and invoke the `taskWithFile:content:andCompletion:` method of `DJIFetchMediaTaskScheduler` by passing the `file` variable and `DJIFetchMediaTaskContentThumbnail` value to ask the scheduler to download the thumbnail of the media file.
 
-In the completion block, we invoke the `reloadData` method of `UITableView` to reload everything in the table view. After that, invoke the `moveTaskToEnd` method to push the `task` to the back of the queue and be executed after the executing task is complete.
+    In the completion block, we invoke the `reloadData` method of `UITableView` to reload everything in the table view. After that, invoke the `moveTaskToEnd` method to push the `task` to the back of the queue and be executed after the executing task is complete.
 
 Lastly, we enable the `reloadBtn` and `editBtn` buttons.
 
@@ -425,6 +477,16 @@ In the code above, we implement the following features:
 
 Next, get the `DJIMediaFile` object in the `self.mediaList` array by using the `indexPath.row` index. Lastly, update the `textLabel`, `detailTextLabel` and `imageView` properties of table view cell according to the `DJIMediaFile` object. You can get the "dji.png" file from the tutorial's Github Sample project.
 
+## Add Helper files from Demo
+
+Add the following files from the tutorial's final product to your project(TODO: link)
+- VideoPreviewerAdapter.swift
+- DecodeImageCalibrateLogic.swift
+- DJIScrollView.swift
+- DJIScrollView.xib
+- AlertView.swift
+
+
 Now, to build and run the project, connect the demo application to a supported DJI product (Please check the [Run Application](../application-development-workflow/workflow-run.html) for more details) and enter the `MediaManagerViewController`, you should be able to see something similar to the following screenshot:
 
 <img src="../images/tutorials-and-samples/iOS/MediaManagerDemo/fetchMediaFiles.gif" width=100%>
@@ -433,7 +495,7 @@ Now, to build and run the project, connect the demo application to a supported D
 
 After showing all the media files in the table view, we can start to implement the features of downloading and deleting media files.
 
-Now, continue to create the following properties in the class extension part:
+Now, continue to create the following properties:
 
 ~~~swift
     var statusAlertView : AlertView?
@@ -477,9 +539,7 @@ Moreover, implement the table View delegate method as shown below:
     }
 ~~~
 
-In the code above, we assign the `selectedCellIndexPath` property to the `indexPath` value. Then get the current selected `currentMedia` object from the `mediaList` array using the `indexPath` param of this method. Moreover, check if the `currentMedia` object is the same as `self.selectedMedia` property.
-
-If not, reset the `previousOffset` and `fileData` properties and update the `self.selectedMedia` object with the `currentMedia`. Lastly, invoke the `reloadData` method to reload everything in the table view.
+In the code above, we assign the `selectedCellIndexPath` property to the `indexPath` value. Then get the current selected `currentMedia` object from the `mediaList` array using the `indexPath` param of this method. Reset the downloaded file data and data offset value(for tracking file download progress) if the `currentMedia` object isn't the same as `self.selectedMedia` property.
 
 Once you finish the steps above, we continue to implement the `downloadBtnAction:` method as shown below:
 
@@ -537,15 +597,15 @@ Once you finish the steps above, we continue to implement the `downloadBtnAction
 
 In the code above, we implement the following features:
 
-1. We first create a variable `isPhoto` and assign its value by checking the `mediaType` of the selected `DJIMediaFile`. For more details of the `DJIMediaType` enum, please check the "DJIMediaFile.h" file.
+1. We first create a variable `isPhoto` and assign its value by checking the `mediaType` of the selected `DJIMediaFile`. For more details on the `DJIMediaType` enum, please check "DJIMediaFile.h".
 
-2. Next, if the `statusAlertView` is nil, we initialize it by invoking the `showAlertViewWithMessage:titles:action:` method of `DJIAlertView`. Here we create an alertView with one button named "Cancel". If user presses on the "Cancel" button of the alertView, we invoke the `stopFetchingFileDataWithCompletion:` method of `DJIMediaFile` to stop the fetch file task.
+2. Next, if the `statusAlertView` is nil, we initialize it by invoking `DJIAlertView`'s `showAlertViewWithMessage:titles:action:` method. Here we create an alertView with one button named "Cancel". If user presses the "Cancel" button of the alertView, we invoke `DJIMediaFile`'s `stopFetchingFileDataWithCompletion:` method to stop the fetch file task.
 
-3. Additionally, invoke the `fetchFileDataWithOffset:updateQueue:updateBlock:` method of `DJIMediaFile` to fetch the media file's full resolution data from the SD card. The full resolution data could be either **image** or **video**. Inside the completion closure, if there is an error, update message of the `statusAlertView` to inform users and dismiss the alert view after 2 seconds. If there is no error and the media file is a photo, initialize the `fileData` property with the received data or append `data` to it if already initialized. (TODO: make note that videos don't actually download here.)
+3. Additionally, invoke `DJIMediaFile`'s `fetchFileDataWithOffset:updateQueue:updateBlock:` method to fetch the media file's full resolution data from the SD card. The full resolution data could be an **image** or **video**. Inside the completion closure, if there is an error, update the message of the `statusAlertView` to inform users and dismiss the alert view after 2 seconds. If there is no error and the media file is a photo, initialize the `fileData` property with the received data or append `data` to it if already initialized. Only photo saving has been implemented here.
 
 Next, accumulate the value of the `previousOffset` property by adding the length of the `data` param. Calculate the percentage of the current download progress and assign the value to the `progress` variable. Also, update the message of `statusAlertView` to inform users of the download progress. Furthermore, check if the download has completed and dismiss the alert view.
 
-Lastly, check if the media file is a photo, and invoke the `showPhotoWithData:` and `savePhotoWithData:` methods to show the full resolution photo and save it to the iOS Photo Library.
+Lastly, if the media file is a photo, invoke the `showPhotoWithData:` and `savePhotoWithData:` methods to show the full resolution photo and save it to the iOS Photo Library.
 
 You can check the implementations of the `showPhotoWithData:` and `savePhotoWithData:` methods below:
 
@@ -576,17 +636,19 @@ You can check the implementations of the `showPhotoWithData:` and `savePhotoWith
             }
             PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: imageURL)
-            } completionHandler: { (success:Bool, error: Error?) in
+            } completionHandler: { [weak self] (success:Bool, error: Error?) in
+                self?.imageDidFinishSaving(error: error)
                 print("success = \(success), error = \(error?.localizedDescription ?? "no")")
             }
         }
     }
 
-    func imageDidFinishSaving(error:NSError?, contextInfo:Any) {
+    //TODO: test this- never called in previous tests...
+    func imageDidFinishSaving(error:Error?) {
         var message = ""
         if let error = error {
             //Show message when save image failed
-            message = "Save Image Failed! Error: \(error.description)"
+            message = "Save Image Failed! Error: \(error.localizedDescription)"
         } else {
             //Show message when save image successfully
             message = "Saved to Photo Album";
@@ -604,11 +666,11 @@ You can check the implementations of the `showPhotoWithData:` and `savePhotoWith
 
 In the code above, we implement the following features:
 
-1. In the `showPhotoWithData:` method, we check if the `data` is not nil and create a `UIImage` object from it. Then check if the created `image` is not nil and show it on the `displayImageView` object.
+1. In the `showPhotoWithData:` method, if the `data` is not nil, create a `UIImage` object from it. Then check if the created `image` is not nil and show it in the `displayImageView`.
 
 2. Similarly, in the `savePhotoWithData:` method, we create a `UIImage` object from the `data` param and invoke the `UIImageWriteToSavedPhotosAlbum()` method to save the image to the photos album.
 
-3. In the selector method, we firstly create a `NSString` object and set its value by checking if there is an error. Next, show the `statusAlertView` to inform the users of the message and dismiss the alert view when the users press on the **Dismiss** button.
+3. In imageDidFinishSaving(error:), we first create a `String` object and set its value by checking for an error. Next, show the `statusAlertView` to inform the users of the message and dismiss the alert view when the users press on the **Dismiss** button.
 
 Once you have finished the steps above, we can continue to implement the feature of deleting media files. Here we should implement the delegate methods of UITableView as shown below:
 
@@ -637,17 +699,17 @@ Once you have finished the steps above, we can continue to implement the feature
 
 The code above implements:
 
-1. In the `tableView:canEditRowAtIndexPath:` method, return `YES` to allow the swipe gesture to delete the table view cell.
+1. In the `tableView:canEditRowAtIndexPath:` method, return `true` to allow the user to delete the table view cell with a swipe gesture.
 
-2. In the `tableView:commitEditingStyle:forRowAtIndexPath:` method, we get the `currentMedia` object from the `mediaList` array firstly. Next, invoke the `deleteFiles:withCompletion:` method of `DJIMediaManager` to delete the select media file. Inside the completion block, if there is an error, show an alert view to inform user of the error description. If not, remove the deleted media file from the `mediaList` array and invoke the `deleteRowsAtIndexPaths:withRowAnimation:` method of `mediaTableView` to remove the table view cell too.
+2. In the `tableView:commitEditingStyle:forRowAtIndexPath:` method, we get the `currentMedia` object from the `mediaList` array. Next, invoke the `deleteFiles:withCompletion:` method of `DJIMediaManager` to delete the selected media file. Inside the completion block, if there is an error, show an alert view to inform user of the error description. If not, remove the deleted media file from the `mediaList` array and invoke the `deleteRowsAtIndexPaths:withRowAnimation:` method of `mediaTableView` to remove the table view cell too.
 
-Now, to build and run the project, connect the demo application to a Mavic Pro and enter the `MediaManagerViewController`, try to download an image file from the SD card, display and save it to the photos album. Also, try to swipe right on the table view cell and delete the media file from the table view. If everything goes well, you should be able to see something similar to the following gif animation:
+Now build and run the project, connect the demo application to a Mavic Pro and enter the `MediaManagerViewController`, try to download an image file from the SD card, display and save it to the photos album. Also, try to swipe right on the table view cell and delete the media file from the table view. If everything goes well, you should be able to see something similar to the following gif animation:
 
 <img src="../images/tutorials-and-samples/iOS/MediaManagerDemo/downloadEditPhoto.gif" width=100%>
 
 ## Working on the Video Playback
 
-After you finish the steps above, you should know how to download and display the image media file using `DJIMediaManager`, we can continue to implement the **Video Playback** features.
+After you finish the steps above, you should know how to download and display the image media file using `DJIMediaManager`. Now let's continue to implement the **Video Playback** features.
 
 Now, implement the following IBAction methods:
 
@@ -713,7 +775,7 @@ Now, implement the following IBAction methods:
 
 In the code above, we implement the following features:
 
-1. In the `playBtnAction:` method, we firstly hide the `displayImageView` image view. Then check the `mediaType` enum value of the `selectedMedia` object to see if the selected media file is a video. Furthermore, update the `placeholder` string of the `positionTextField` with the video duration and invoke the `playVideo:withCompletion:` method of `DJIMediaManager` to start playing the video.
+1. In the `playBtnAction:` method, we hide the `displayImageView` image view. Then check the `selectedMedia`'s `mediaType` object to see if the selected media file is a video. Set the `placeholder` string of the `positionTextField` to the video duration and invoke the `playVideo:withCompletion:` method of `DJIMediaManager` to start playing the video.
 
 2. In the `resumeBtnAction:` method, we invoke the `resumeWithCompletion:` method of `DJIMediaManager` to resume the paused video.
 
@@ -779,7 +841,7 @@ Lastly, we can show the video playback state info by implementing the following 
 
 In the code above, we implement the following features:
 
-1. At the bottom of the `initData` method, we initialize `statusView` and hide it. For more details of the `DJIScrollView`, please check the "DJIScrollView.swift file in the tutorial's Github Sample project.
+1. At the bottom of the `initData` method, we initialize `statusView` and hide it. For more details of the `DJIScrollView`, please check the "DJIScrollView.swift" file in the tutorial's Github Sample project.
 2. In the `showStatusBtnAction:` method, show the `statusView` when the users press the **Status** button.
 3. Implement the delegate method of `DJIMediaManagerDelegate`. We create a `stateStr` NSMutableString variable and append different string values to it. Like `fileName`, `durationInSeconds` and `videoOrientation` of the `DJIMediaFile`, for more details, please check the "DJIMediaFile" class. Lastly, invoke the `writeStatus` method of `DJIScrollView` to show the `stateStr` NSMutableString in the `statusTextView` of `DJIScrollView`.
 4. In the `statusToString:` and `orientationToString:` methods, return specific String values according to the values of the `DJIMediaVideoPlaybackStatus` and `DJICameraOrientation` enums.
