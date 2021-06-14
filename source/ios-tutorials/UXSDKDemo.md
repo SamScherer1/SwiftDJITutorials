@@ -27,13 +27,13 @@ In addition, with the ease of use that the UXSDK provides, it frees developers t
 
 As DJI UXSDK is built on top of DJI Mobile SDK and DJIWidget, you need to use them together in your application development.
 
-For a more in depth understanding of the DJI UXSDK, please go to the [UX SDK Introduction](../introduction/ux_sdk_introduction.html).
+For a more in depth understanding of the DJI UXSDK, please go to the [UX SDK Introduction](../introduction/ux_sdk_introduction.md).
 
 ## Importing DJI SDK, UXSDK and DJIWidget with CocoaPods
 
 Now, let's create a new project in Xcode, select the iOS platform tab, then choose the normal **App** template, press "Next" and enter "UXSDKDemo" in the **Product Name** field. Make sure interface is set to Storyboard and Lanugage is set to Swift (keep the other default settings).
 
-Once the project is created, let's download and import the **DJISDK.framework** and **DJIUXSDK.framework** using CocoaPods. In Finder, navigate to the root folder of the project and create a **Podfile**. To learn more about Cocoapods, please check [this guide](https://guides.cocoapods.org/using/getting-started.html#getting-started).
+Once the project is created, let's download and import the **DJISDK.framework** and **DJIUXSDK.framework** using CocoaPods. In Finder, navigate to the root folder of the project and create a **Podfile**. To learn more about Cocoapods, please check [this guide](https://guides.cocoapods.org/using/getting-started.md#getting-started).
 
 Replace the content of the **Podfile** with the following:
 
@@ -82,7 +82,7 @@ Pod installation complete! There are 2 dependencies from the Podfile and 2 total
 
 ## Configure Build Settings
 
- You can also check our previous tutorial [Integrate SDK into Application](../application-development-workflow/workflow-integrate.html#configure-build-settings) to learn how to configure the necessary Xcode project build settings.
+ You can also check our previous tutorial [Integrate SDK into Application](../application-development-workflow/workflow-integrate.md#configure-build-settings) to learn how to configure the necessary Xcode project build settings.
 
 ## Application Activation and Aircraft Binding in China
 
@@ -90,7 +90,7 @@ Pod installation complete! There are 2 dependencies from the Podfile and 2 total
 
  If an application is not activated, the aircraft will not bind (if required) or if a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled and flight will be limited to a zone of 100m diameter and 30m height to ensure that the aircraft stays within line of sight.
 
- To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.html).
+ To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.md).
 
 ## Implementing the DUXDefaultLayoutViewcontroller
 
@@ -171,7 +171,7 @@ Now, add the following code to **DefaultLayoutViewController** to handle applica
 
 In the code above, we have implemented the following logic:
 
-1. In the `viewDidLoad` method, we invoked the `registerAppWithDelegate` method of `DJISDKManager` to make the application connect to a DJI Server through the internet. Doing this verified the App Key and set the `DJISDKManagerDelegate` to `DefaultLayoutViewController`. For more details on registering the application, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#register-application).
+1. In the `viewDidLoad` method, we invoked the `registerAppWithDelegate` method of `DJISDKManager` to make the application connect to a DJI Server through the internet. Doing this verified the App Key and set the `DJISDKManagerDelegate` to `DefaultLayoutViewController`. For more details on registering the application, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.md#register-application).
 
 2. We also implemented the delegate method `appRegisteredWithError(_ error: Error?)` of **DJISDKManagerDelegate** to connect the application to a DJI Product by invoking the `startConnectionToProduct` method of **DJISDKManager** when registered successfully. Also showed an alert view displaying the result of the registration attempt.
 
@@ -190,7 +190,7 @@ Due to a bug in UXSDK 4.14 you may need to remove the following lines from DJIUX
 
 ## Connecting to the Aircraft and Run the Project
 
-Now, please check this [Connect Mobile Device and Run Application](../application-development-workflow/workflow-run.html#connect-mobile-device-and-run-application) guide to run the application and try the mini-DJI Go features we built so far using the UXSDK!
+Now, please check this [Connect Mobile Device and Run Application](../application-development-workflow/workflow-run.md#connect-mobile-device-and-run-application) guide to run the application and try the mini-DJI Go features we built so far using the UXSDK!
 
 If you can see the live video feed and are able to test the features like in the video below, then congratulations! Using the DJI UXSDK is that easy.
 
