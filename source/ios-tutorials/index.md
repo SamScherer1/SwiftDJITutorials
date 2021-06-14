@@ -24,7 +24,7 @@ Now, let's create a new project in Xcode, choose **Single View Application** tem
 
 Once the project is created, let's delete the "ViewController.swift" file created by Xcode by default. Create a new ViewController named "FPVViewController".
 
-Now, let's install the **DJISDK.framework** in the Xcode project using Cocoapods and implement the SDK activation process in the "FPVViewController.swift" file. If you are not familiar with the process of installing and activating DJI SDK, please check the Github source code and this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#Xcode-Project-Integration) for details.
+Now, let's install the **DJISDK.framework** in the Xcode project using Cocoapods and implement the SDK activation process in the "FPVViewController.swift" file. If you are not familiar with the process of installing and activating DJI SDK, please check the Github source code and this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.md#Xcode-Project-Integration) for details.
 
 ## Application Activation and Aircraft Binding in China
 
@@ -32,7 +32,7 @@ Now, let's install the **DJISDK.framework** in the Xcode project using Cocoapods
 
  If an application is not activated, the aircraft not bound (if required), or a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled, and flight will be limited to a zone of 100m diameter and 30m height to ensure the aircraft stays within line of sight.
 
- To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.html).
+ To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.md).
 
 ## Implementing the First Person View
 
@@ -272,7 +272,7 @@ Moreover, the `-(void) camera:(DJICamera*)camera didUpdateSystemState:(DJICamera
 
 ## Connecting to the Aircraft or Handheld Device
 
-Please check this [Connect Mobile Device and Run Application](../application-development-workflow/workflow-run.html#connect-mobile-device-and-run-application) guide to run the application and view the live video stream from your DJI product's camera based on what we've finished of the application so far!
+Please check this [Connect Mobile Device and Run Application](../application-development-workflow/workflow-run.md#connect-mobile-device-and-run-application) guide to run the application and view the live video stream from your DJI product's camera based on what we've finished of the application so far!
 
 ## Enjoying the First Person View
 
