@@ -33,7 +33,7 @@ For a more in depth understanding of the DJI UXSDK, please go to the [UX SDK Int
 
 Now, let's create a new project in Xcode, select the iOS platform tab, then choose the normal **App** template, press "Next" and enter "UXSDKDemo" in the **Product Name** field. Make sure interface is set to Storyboard and Lanugage is set to Swift (keep the other default settings).
 
-Once the project is created, let's download and import the **DJISDK.framework** and **DJIUXSDK.framework** using CocoaPods. In Finder, navigate to the root folder of the project and create a **Podfile**. To learn more about Cocoapods, please check [this guide](https://guides.cocoapods.org/using/getting-started.md#getting-started).
+Once the project is created, let's download and import the **DJISDK.framework** and **DJIUXSDK.framework** using CocoaPods. In Finder, navigate to the root folder of the project and create a **Podfile**. To learn more about Cocoapods, please check [this guide](https://guides.cocoapods.org/using/getting-started.html#getting-started).
 
 Replace the content of the **Podfile** with the following:
 
