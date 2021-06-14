@@ -31,7 +31,7 @@ See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-GSDemo) f
 
 Now, let's create a new project in Xcode, choose **Single View Application** template for your project and press "Next", then enter "GSDemo" in the **Product Name** field and keep the other default settings.
 
-Once the project is created, let's import the **DJISDK.framework** to it. If you are not familiar with the process of importing DJI SDK, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#Xcode-Project-Integration) for details.
+Once the project is created, let's import the **DJISDK.framework** to it. If you are not familiar with the process of importing the DJI SDK, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.md) for details.
 
 ### 2. Creating the Map View
 
