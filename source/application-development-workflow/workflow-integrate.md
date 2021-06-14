@@ -81,7 +81,7 @@ class ViewController: UIViewController, DJISDKManagerDelegate {
 ~~~
 
    * Create a new method `registerApp`.
-   * Use the application's Bundle Identifier to [generate an App Key](../quick-start/index.html#Generate-an-App-Key).
+   * Use the application's Bundle Identifier to [generate an App Key](../quick-start/index.md#Generate-an-App-Key).
    * Create a `DJISDKAppKey` key in the **info.plist** file of the Xcode project and paste the generated App Key string into its string value:
 
    ![appKeyInPlist](../images/quick-start/iOSAppKeyInPlist.png)
