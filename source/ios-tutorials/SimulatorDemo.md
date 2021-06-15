@@ -42,7 +42,7 @@ Additionally, simulator initialization, monitoring and termination can be contro
 
 Now, let's create a new project in Xcode, choose **Single View Application** template for your project and press "Next", then enter "DJISimulatorDemo" in the **Product Name** field and keep the other default settings.
 
-Once the project is created, let's delete the **ViewController.h** and **ViewController.m** files, which were created by Xcode when you create the project. Then create a UIView Controller named **RootViewController** and set the class of original ViewController object in storyboard to "RootViewController".
+Once the project is created, let's delete the **ViewController.swift file, which was created by Xcode when you created the project. Then create a UIView Controller named **RootViewController** and set the class of original ViewController object in the main storyboard to "RootViewController".
 
 Next, let's import the DJISDK.framework to the project and implement the registration process in the **RootViewController**. If you are not familiar with the process of importing and activating DJI SDK, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.md#Xcode-Project-Integration) for details.
 
@@ -50,15 +50,15 @@ Next, let's import the DJISDK.framework to the project and implement the registr
 
 #### Creating the UI of RootViewController
 
-Let's open the "Main.storyboard" and make the **RootViewController** embed in a Navigation Controller and set it as the Storyboard Entry Point. Next, drag and drop two UILabel objects to the RootViewController and named them as "Product Connection Status" and "Model: Not Available". Moreover, drag and drop a UIButton object and place under the two UILabels, named it as "Open", then set its background image as "btn.png" file, which you can get it from the tutorial's Github Sample Project. Lastly, setup the UI elements' auto layout to support multiple device screen size.
+Let's open "Main.storyboard" and embed **RootViewController** in a Navigation Controller which should be set as the Storyboard Entry Point. Next, drag and drop two UILabel objects to the RootViewController and set their default text to "Product Connection Status" and "Model: Not Available". Drag and drop a UIButton under the two UILabels, name it "Open", then set its background image as "btn.png" file, which you can get it from the tutorial's Github Sample Project. Lastly, setup the UI elements' auto layout to support multiple screen sizes.
 
 #### Creating the UI of DJISimulatorViewController
 
-Drag and drop another ViewController object from the Object Library to the right of **RootViewController** in the storyboard. Then create another UIViewController class file in the navigator and named it "SimulatorViewController", then set the class name in storyboard too.
+Drag and drop another ViewController object from the Object Library to the right of **RootViewController** in the storyboard. Then create a new file called "SimulatorViewController.swift" in the navigator and initialize a subclass of UIViewController called SimulatorViewController there. Then set the class name of the new view controller in storyboard to SimulatorViewController too.
 
 Furthermore, drag and drop 5 UIButton objects and place them on top, named them from the left to right as "EnterVirtualStickControl", "ExitVirtualStickControl", "Start Simulator", "Takeoff" and "Land". Make sure they are place inside a UIView object as subviews. Next, drag and drop a UILabel and place it under the 5 UIButton objects, named it as "Simulator State".
 
-Lastly, place two UIImageView objects inside a UIView (Label it as "VirtualStick Left") as subviews, and set their images as "stick\_base.png" and "stick\_normal.png", which you can get them from the tutorial's Github sample project. Now, the left joystick's UI has setuped. Similiarly, let's make the right joystick's UI in the same way.
+Lastly, place two UIImageViews inside a UIView (Label it as "VirtualStick Left") as subviews, and set their images as "stick\_base.png" and "stick\_normal.png", which you can get them from the tutorial's Github sample project. Now, the left joystick's UI has been setup. Similiarly, let's make the right joystick's UI in the same way.
 
 For more detail configurations of storyboard, please check the tutorial's Github sample project. If everything goes well, you should see the following screenshot:
 
