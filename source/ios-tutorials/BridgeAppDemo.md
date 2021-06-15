@@ -129,7 +129,9 @@ class FPVViewController: UIViewController, DJICameraDelegate, DJISDKManagerDeleg
 
 The delegate method above is called when SDK detects a product. Then invoke the `fetchCamera` method to fetch the updated DJICamera object.
 
-Next, in the viewWillAppear method, set "fpvPreviewView" instance as a View of DJIVideoPreviewer to show the Video Stream and reset it to nil in the viewWillDisappear method:
+Next, in the viewWillAppear method, set "fpvPreviewView" instance as a View of DJIVideoPreviewer to show the Video Stream, register the app with your DJI app key and reset it to nil in the viewWillDisappear method:
+
+> Note: If you don't know how to apply as a DJI developer and get the App Key, please refer to [Get Started](../quick-start/index.md).
 
 ~~~Swift
     override func viewDidAppear(_ animated: Bool) {
@@ -162,20 +164,7 @@ Next, in the viewWillAppear method, set "fpvPreviewView" instance as a View of D
 
 ## Enter Debug Mode
 
-**1**. Implement the **DJISDKManagerDelegate** protocol method in the DJICameraViewController.m file's extension part. Then create a new method named **registerApp** and invoke it in the `viewDidAppear` method as shown below:
-
-~~~Swift
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        
-        DJIVideoPreviewer.instance().setView(self.fpvView)
-        DJISDKManager.registerApp(with: self)
-    }
-~~~
-
-> Note: If you don't know how to apply as a DJI developer and get the App Key, please refer to [Get Started](../quick-start/index.md).
-
-**2**. Next, let's implement the DJISDKManagerDelegate method as shown below:
+**1**. Let's implement the DJISDKManagerDelegate method as shown below:
 
 ~~~Swift
     func appRegisteredWithError(_ error: Error?) {
@@ -194,7 +183,7 @@ Next, in the viewWillAppear method, set "fpvPreviewView" instance as a View of D
 
 The delegate method above gets called when the app is registered. If the registration is successful, we can call the `enableBridgeMode(withBridgeAppIP:)` class method of **DJISDKManager** to enter debug mode of the SDK by passing the **bridgeAppIP** parameter, which you can get from **the Bridge App**. Then add the listener for the `primaryVideoFeed` of `videoFeeder` in **DJISDKManager** and call the start method of the DJIVideoPreviewer class to start video decoding.
 
-**3**. Build and Run the project in Xcode. If everything is OK, you will see a "Register App Successed!" alert once the application loads.
+**2**. Build and Run the project in Xcode. If everything is OK, you will see a "Register App Successed!" alert once the application loads.
 
   ![Screenshot](../images/tutorials-and-samples/iOS/BridgeAppDemo/Screenshot.png)
 
