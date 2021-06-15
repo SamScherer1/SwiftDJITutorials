@@ -51,7 +51,7 @@ Now try to open the bridge app, and connect your mobile device to the remote con
 
 Now, let's create a new project in Xcode, choose **Single View Application** template for your project and press "Next", then enter "BridgeAppDemo" in the **Product Name** field and keep the other default settings.
 
-Once the project is created, let's import the **DJISDK.framework** to it. If you are not familiar with the process of importing and activating DJI SDK, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#Xcode-Project-Integration) for details.
+Once the project is created, let's import the **DJISDK.framework**. If you are not familiar with the process of importing and activating DJI SDK, see this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.md#Xcode-Project-Integration) for details.
 
 ## Application Activation and Aircraft Binding in China
 
@@ -59,11 +59,11 @@ Once the project is created, let's import the **DJISDK.framework** to it. If you
 
  If an application is not activated, the aircraft is not bound (if required), or a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled, and flight will be limited to a zone of 100m diameter and 30m height to ensure the aircraft stays within line of sight.
 
- To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.html).
+ To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.md).
 
 ## Importing the DJIWidget
 
- You can check this tutorial [Creating a Camera Application](./index.html#importing-the-djiwidget) to learn how to download and import the **DJIWidget** into your Xcode project.
+ You can check this tutorial [Creating a Camera Application](./index.md#importing-the-djiwidget) to learn how to download and import the **DJIWidget** into your Xcode project.
 
 ## Implement the Live Video View
 
@@ -173,7 +173,7 @@ Next, in the viewWillAppear method, set "fpvPreviewView" instance as a View of D
     }
 ~~~
 
-> Note: If you don't know how to apply as a DJI developer and get the App Key, please refer to [Get Started](../quick-start/index.html).//TODO: test relative links like this from github markdown...
+> Note: If you don't know how to apply as a DJI developer and get the App Key, please refer to [Get Started](../quick-start/index.md).
 
 **2**. Next, let's implement the DJISDKManagerDelegate method as shown below:
 
