@@ -29,7 +29,7 @@ You can connect your iOS device and Mac to the same WiFi network or connect to a
 
 ![localHostMode](../images/tutorials-and-samples/iOS/RemoteLoggerDemo/localHostModeFinal.png)
 
-If you don't have iOS device, you can use your Xcode Simulator to simulate one. Using the url string like **http://localhost:4567** can work well with the server script.//TODO: what does this mean?
+If you don't have an iOS device, you can use your Xcode Simulator to simulate one. Using the url string **http://localhost:4567** can work when using simulator.
 
 ## Setup and Run the Server
 
@@ -86,10 +86,10 @@ For other issues, please check the two problems above.
 
 ## Enable Remote Logging
 
-**1.** Implement the **DJISDKManagerDelegate** protocol method in the ViewController.swift file's extension part.
+**1.** Implement the **DJISDKManagerDelegate** protocol method in ViewController.swift.
 
 ~~~Swift
-    override func viewDidAppear(_ animated: Bool) {
+    override func viewDidLoad() {
         super.viewDidAppear(animated)
         DJISDKManager.registerApp(with: self)
     }
@@ -110,7 +110,7 @@ For other issues, please check the two problems above.
             // URLString is provided in green when starting the server. It should begin with http:// and end with a port number
             DJISDKManager.enableRemoteLogging(withDeviceID: "DeviceID", logServerURLString: "http://192.168.128.181:4567")
         }
-        self.showAlertViewWith(title: "Register App", message: message)
+        NSLog("Register App: \(message)")
     }
 ~~~
 
