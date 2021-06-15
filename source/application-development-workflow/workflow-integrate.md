@@ -4,7 +4,7 @@ date: 2021-06-09
 keywords: [Xcode project integration, import SDK, import framework,  android studio integration, Swift]
 ---
 
-The examples below import the DJI SDK into a new iOS project using Swift. The same steps can be used for integration into an existing application.
+The examples below import the DJI SDK into a new iOS project using Swift. The same steps can be used for integration into an existing application. Download the finished product of this tutorial [here](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-ImportAndActivateSDKInXcode-Swift).
 
 ## Xcode Project Integration
 
