@@ -74,7 +74,7 @@ For other issues, please check the two problems above.
 
 ## Download and Import the DJI SDK
 
- If you are not familiar with the process of installing DJI SDK in your Xcode project, please check the Github source code and this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#Xcode-Project-Integration) for details.
+ If you are not familiar with the process of installing DJI SDK in your Xcode project, please check the Github source code and this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.md#Xcode-Project-Integration) for details.
 
 ## Application Activation and Aircraft Binding in China
 
@@ -82,7 +82,7 @@ For other issues, please check the two problems above.
 
  If an application is not activated, the aircraft not bound (if required), or a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled, and flight will be limited to a zone of 100m diameter and 30m height to ensure the aircraft stays within line of sight.
 
- To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.html).
+ To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.md).
 
 ## Enable Remote Logging
 
@@ -95,7 +95,7 @@ For other issues, please check the two problems above.
     }
 ~~~
 
-> **Note:** If you don't know how to apply as a DJI developer and get the App Key, please refer to the [Get Started](../quick-start/index.html).
+> **Note:** If you don't know how to apply as a DJI developer and get the App Key, please refer to the [Get Started](../quick-start/index.md).
 
 **2**. Next, let's implement the DJISDKManagerDelegate method as shown below:
 
