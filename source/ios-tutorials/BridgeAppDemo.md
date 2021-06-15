@@ -172,7 +172,7 @@ Next, in the viewWillAppear method, set "fpvPreviewView" instance as a View of D
         if let _ = error {
             message = "App registration failed! Please enter your app key and check the network."
         } else {
-            DJISDKManager.enableBridgeMode(withBridgeAppIP: 192.168.128.169)
+            DJISDKManager.enableBridgeMode(withBridgeAppIP: "192.168.128.169")
             DJISDKManager.videoFeeder()?.primaryVideoFeed.add(self, with: nil)
             DJIVideoPreviewer.instance().start()
         }
@@ -219,9 +219,12 @@ Congratulations! By using the bridge app, you can now debug your app with all th
 
 ## Implement the Capture and Record function
 
-Create a Bool property variable named **isRecording** in  FPVViewController.swift and implement the DJICameraDelegate method as shown below:
+Create a Bool property variable named **isRecording** in FPVViewController.swift and implement the DJICameraDelegate method as shown below:
 
 ~~~Swift
+
+    var isRecording = false
+
     func format(seconds: UInt) -> String {
         let date = Date(timeIntervalSince1970: TimeInterval(seconds))
         
