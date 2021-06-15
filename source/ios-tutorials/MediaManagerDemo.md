@@ -27,7 +27,7 @@ We use Mavic Pro and iPad Air as an example to make this demo. For more details 
 
  If an application is not activated, the aircraft not bound (if required), or a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled, and flight will be limited to a zone of 100m diameter and 30m height to ensure the aircraft stays within line of sight.
 
- To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.html).
+ To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.md).
 
 ## Implementing DJI Go Style Default Layout
 
@@ -35,15 +35,15 @@ We use Mavic Pro and iPad Air as an example to make this demo. For more details 
 
 To create a new project in Xcode, choose **Single View Application** template for your project and press "Next", then enter "MediaManagerDemo" in the **Product Name** field and keep the other default settings. Once the project is created, import the DJI SDK and DJI UX SDK.
 
-You can check [Getting Started with DJI UX SDK](./UXSDKDemo.html#importing-dji-sdk-and-uxsdk-with-cocoapods) tutorial to learn how to import the **DJISDK.framework** and **DJIUXSDK.framework** into your Xcode project.
+You can check the [Getting Started with DJI UX SDK](./UXSDKDemo.md#importing-dji-sdk-and-uxsdk-with-cocoapods) tutorial to learn how to import the **DJISDK.framework** and **DJIUXSDK.framework** into your Xcode project.
 
 ### Importing the DJIWidget
 
-You can check [Creating a Camera Application](./index.html#importing-the-djiwidget) tutorial to learn how to download and import the **DJIWidget** into your Xcode project.
+You can check the [Creating a Camera Application](./index.md#importing-the-djiwidget) tutorial to learn how to download and import the **DJIWidget** into your Xcode project.
 
 ### Working on the MainViewController and DefaultlayoutViewController
 
-You can check this tutorial's Github Sample Code to learn how to implement the **MainViewController** to do SDK registration and update UIs and show alert views to inform users when DJI product is connected and disconnected. Also, you can learn how to implement shooting photos and recording videos functionalities with standard DJI Go UIs by using **DUXDefaultLayoutViewcontroller** of DJI UX SDK from the [Getting Started with DJI UX SDK](./UXSDKDemo.html#working-on-the-mainviewcontroller-and-defaultlayoutviewcontroller)(TODO:test link) tutorial.
+You can check this tutorial's Github Sample Code to learn how to implement the **MainViewController**, do SDK registration, update UI and show alert views to inform users when a DJI product is connected or disconnected. Also, you can learn how to implement the shoot photo and record video features with standard DJI Go UIs by using **DUXDefaultLayoutViewcontroller** of DJI UX SDK from the [Getting Started with DJI UX SDK](./UXSDKDemo.md#working-on-the-mainviewcontroller-and-defaultlayoutviewcontroller) tutorial.
 
 If everything goes well, you can see the live video feed and test the shoot photo and record video features like this:
 
@@ -487,7 +487,7 @@ Add the following files from the tutorial's final product to your project(TODO: 
 - AlertView.swift
 
 
-Now, to build and run the project, connect the demo application to a supported DJI product (Please check the [Run Application](../application-development-workflow/workflow-run.html) for more details) and enter the `MediaManagerViewController`, you should be able to see something similar to the following screenshot:
+Now, to build and run the project, connect the demo application to a supported DJI product (Please check the [Run Application](../application-development-workflow/workflow-run.md) for more details) and enter the `MediaManagerViewController`, you should be able to see something similar to the following screenshot:
 
 <img src="../images/tutorials-and-samples/iOS/MediaManagerDemo/fetchMediaFiles.gif" width=100%>
 
