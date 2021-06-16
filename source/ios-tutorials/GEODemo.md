@@ -20,7 +20,7 @@ We used a Mavic Pro to make this demo. Let's get started!
 
 ## Introduction
 
-The [Geospatial Environment Online (GEO) system](http://www.dji.com/flysafe/geo-system) is a best-in-class geospatial information system that provides drone operators with information that will help them make smart decisions about where and when to fly. It combines up-to-date airspace information, a warning and flight-restriction system, a mechanism for [unlocking](http://www.dji.com/flysafe/geo-system/unlock) (self-authorizing) drone flights in locations where flight is permitted under certain conditions, and a minimally-invasive accountability mechanism for these decisions.
+The [Geospatial Environment Online (GEO) system](http://www.dji.com/flysafe/geo-system) is a best-in-class geospatial information system that provides drone operators with information that will help them make smart decisions about where and when to fly. It combines up-to-date airspace information, a warning and flight-restriction system, a mechanism for [unlocking](https://fly-safe.dji.com/unlock/unlock-request/list) (self-authorizing) drone flights in locations where flight is permitted under certain conditions, and a minimally-invasive accountability mechanism for these decisions.
 
 ## Application Activation and Aircraft Binding in China
 
@@ -28,7 +28,7 @@ The [Geospatial Environment Online (GEO) system](http://www.dji.com/flysafe/geo-
 
  If an application is not activated, the aircraft not bound (if required), or a legacy version of the SDK (< 4.1) is being used, all **camera live streams** will be disabled, and flight will be limited to a zone of 100m diameter and 30m height to ensure the aircraft stays within line of sight.
 
- To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.html).
+ To learn how to implement this feature, please check this tutorial [Application Activation and Aircraft Binding](./ActivationAndBinding.md).
 
 ## Implementing the UI of the Application
 
@@ -38,7 +38,7 @@ Now, let's create a new project in Xcode, choose **Single View Application** tem
 
 Once the project is created, let's delete the **ViewController.h** and **ViewController.m** files, which were created by Xcode when you create the project. Then create a UIView Controller named **RootViewController** and set the class of original ViewController object in the storyboard to "RootViewController".
 
-Next, let's import the **MapKit.framework** and **DJISDK.framework** to the project and implement the registration process in the **RootViewController**. If you are not familiar with the process of importing and activating DJI SDK, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.html#Xcode-Project-Integration) for details.
+Next, let's import the **MapKit.framework** and **DJISDK.framework** to the project and implement the registration process in the **RootViewController**. If you are not familiar with the process of importing and activating DJI SDK, please check this tutorial: [Importing and Activating DJI SDK in Xcode Project](../application-development-workflow/workflow-integrate.md#Xcode-Project-Integration) for details.
 
 ### Working on the UI of Application
 
@@ -1178,7 +1178,7 @@ In the code above, we implement the following feature:
 
 ## Running the Sample Code 
 
-We have gone through a long way so far, now, let's build and run the project, connect the demo application to your Mavic Pro (Please check the [Run Application](../application-development-workflow/workflow-run.html) for more details) and check all the features we have implemented so far. 
+We have gone through a long way so far, now, let's build and run the project, connect the demo application to your Mavic Pro (Please check the [Run Application](../application-development-workflow/workflow-run.md) for more details) and check all the features we have implemented so far. 
 
 ### Unlock Authorization Fly Zone Workflow
 
@@ -1213,7 +1213,7 @@ On the upper right corner of the screenshot, you can check the `loginStateLabel`
 
 ### Start and Stop Simulator
 
-Instead of using [DJI Assistant 2 Simulator](https://developer.dji.com/mobile-sdk/documentation/application-development-workflow/workflow-testing.html#DJI-Assistant-2-Simulator) to simulate the test environment, we use the location simulation feature of `DJISimulator` to locate the aircraft to specific latitude and longitude coordinate. It's more convenient to test the GEO feature in the sample.  
+Instead of using [DJI Assistant 2 Simulator](https://developer.dji.com/mobile-sdk/documentation/application-development-workflow/workflow-testing.md#DJI-Assistant-2-Simulator) to simulate the test environment, we use the location simulation feature of `DJISimulator` to locate the aircraft to specific latitude and longitude coordinate. It's more convenient to test the GEO feature in the sample.  
 
 #### 1. Start Simulator
 
