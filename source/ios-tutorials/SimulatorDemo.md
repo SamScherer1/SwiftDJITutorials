@@ -52,7 +52,7 @@ Next, let's import the DJISDK.framework to the project and implement the registr
 
 Let's open "Main.storyboard" and embed **RootViewController** in a Navigation Controller which should be set as the Storyboard Entry Point. Next, drag and drop two UILabel objects to the RootViewController and set their default text to "Product Connection Status" and "Model: Not Available". Drag and drop a UIButton under the two UILabels, name it "Open", then set its background image as "btn.png" file, which you can get it from the tutorial's Github Sample Project. Lastly, setup the UI elements' auto layout to support multiple screen sizes.
 
-#### Creating the UI of DJISimulatorViewController
+#### Creating the UI of SimulatorViewController
 
 Drag and drop another ViewController object from the Object Library to the right of **RootViewController** in the storyboard. Then create a new file called "SimulatorViewController.swift" in the navigator and initialize a subclass of UIViewController called SimulatorViewController there. Then set the class name of the new view controller in storyboard to SimulatorViewController too.
 
@@ -60,13 +60,20 @@ Furthermore, drag and drop 5 UIButton objects and place them on top, named them 
 
 Lastly, place two UIImageViews inside a UIView (Label it as "VirtualStick Left") as subviews, and set their images as "stick\_base.png" and "stick\_normal.png", which you can get them from the tutorial's Github sample project. Now, the left joystick's UI has been setup. Similiarly, let's make the right joystick's UI in the same way.
 
-For more detail configurations of storyboard, please check the tutorial's Github sample project. If everything goes well, you should see the following screenshot:
+For more detail configurations of storyboard, please check the tutorial's Github sample project. Your storyboard should look like this:
 
 ![](../images/tutorials-and-samples/iOS/SimulatorDemo/simulatorStoryboard.png)
 
 ## Working on RootViewController
 
-Let's open RootViewController.swift file and create IBOutlets properties to link the UI elements in storyboard. Then add the following method to update the two UILabel objects' content when product connection update:
+Let's open RootViewController.swift file and create IBOutlets properties to link the UI elements in storyboard.
+
+~~~swift
+    @IBOutlet weak var connectStatusLabel: UILabel!
+    @IBOutlet weak var modelNameLabel: UILabel!
+~~~
+
+Then add the following method to update the two UILabel objects' content when product connection updates:
 
 ~~~swift
     func updateStatusBasedOn(_ newConnectedProduct:DJIBaseProduct?) {
@@ -81,24 +88,16 @@ Let's open RootViewController.swift file and create IBOutlets properties to link
     }
 ~~~
 
-Next, invoke the above method at the end of both the `viewDidAppear` and `productConnected:` methods as shown below:
+Next, invoke the above method in the `viewDidAppear` and `productConnected:` methods as shown below:
 
 ~~~swift
     override func viewDidAppear(_ animated: Bool) {
-
-        ...
-
         if let product = self.product {
             self.updateStatusBasedOn(product)
         }
     }
-~~~
 
-~~~swift
     func productConnected(_ product: DJIBaseProduct?) {
-
-        ...
-
         self.updateStatusBasedOn(product)
     }
 ~~~
@@ -122,11 +121,11 @@ The following method will be invoked in `touchEvent:`, `touchesEnded:withEvent:`
     }
 ~~~
 
-When you touch on the virtual stick image and drag it around inside the **VirtualStickView**, the NSNotificationCenter will post a notification with the name of "StickChanged" and the location of the current virtual stick, which uses a CGPoint to represent it.
+When you touch the virtual stick image and drag it around inside the **VirtualStickView**, the NSNotificationCenter will post a notification with the name of "StickChanged" and the location of the virtual stick, which is represented by a CGPoint.
 
-## Implementing DJISimulatorViewController
+## Implementing SimulatorViewController
 
-Once you finished implementing the VirtualStickView, let's continue to implement the rest of **SimulatorViewController**. Open the SimulatorViewController.swift file and import the following header files and create related IBOutlet properties and IBAction methods:
+Once you finished implementing the VirtualStickView, let's continue to implement the rest of **SimulatorViewController**. Open the SimulatorViewController.swift file, import the following header files and create related IBOutlet properties and IBAction methods:
 
 ~~~swift
 import Foundation
@@ -147,20 +146,42 @@ class SimulatorViewController : UIViewController, DJISimulatorDelegate {
     var mYaw : Float = 0.0
     var mThrottle : Float = 0.0
 
-    ...
+    @IBAction func onEnterVirtualStickControlButtonClicked(_ sender: Any) {
+
+    }
+    
+    @IBAction func onExitVirtualStickControlButtonClicked(_ sender: Any) {
+
+    }
+    
+    @IBAction func onSimulatorButtonClicked(_ sender: Any) {
+
+    }
+
+    @IBAction func onTakeoffButtonClicked(_ sender: Any) {
+
+    }
+
+    @IBAction func onLandButtonClicked(_ sender: Any) {
+
+    }
 
 }
 ~~~
 
-Here, we first implement the **DJISimulatorDelegate** protocol in the interface. Then create IBOutlet properties for the left and right `VirtualStickView`, and the `simulatorButton`, `simulatorStateLabel`. The `isSimulatorOn` bool property is used to store the start state of DJISimulator. `mXVelocity`, `mYVelocity`, `mYaw` and `mThrottle` properties are used to store the `DJIVirtualStickFlightControlData` struct data of `DJIFlightController`.
+Here, we first conform to **DJISimulatorDelegate** in the interface then create IBOutlet properties for the left and right `VirtualStickView`, `simulatorButton` and `simulatorStateLabel`. The `isSimulatorOn` bool property is used to store the start state of DJISimulator. `mXVelocity`, `mYVelocity`, `mYaw` and `mThrottle` properties are used to store the `DJIVirtualStickFlightControlData` struct data of `DJIFlightController`.
 
-For the remaining five IBAction methods, they are related to the five UIButtons on top. We can use them to **enter** or **exit** virtual stick, **take off** or **auto land** the aircraft and **start** or **stop** simulator. //TODO: actions go here or below?
+The remaining five IBAction methods are related to the five UIButtons on top. We will use them to **enter** or **exit** virtual stick, **take off** or **auto land** the aircraft and **start** or **stop** simulator. 
 
 Before we continue to implement the **SimulatorViewController**, let's create a **DemoUtility** file to define some common methods:
 
 - DemoUtility.swift
 
 ~~~swift
+import Foundation
+import UIKit
+import DJISDK
+
 func showAlertWith(_ result:String) {
     DispatchQueue.main.async {
         let alertViewController = UIAlertController(title: nil, message: result as String, preferredStyle: UIAlertController.Style.alert)
@@ -192,11 +213,11 @@ func fetchFlightController() -> DJIFlightController? {
 }
 ~~~
 
-For the `fetchProduct`, `fetchAircraft` and `fetchFlightController ` methods, they are used to get the latest DJIBaseProduct, DJIAircraft and DJIFlightController object. For the `showAlertViewWithTitle:message: cancelAlertAction:defaultAlertAction:viewController:` method, it's used to show an alertView for our developers.
+The `fetchProduct`, `fetchAircraft` and `fetchFlightController ` methods are used to get the latest DJIBaseProduct, DJIAircraft and DJIFlightController objects. The `showAlertViewWithTitle:message: cancelAlertAction:defaultAlertAction:viewController:` method is used to show an alertView to the user.
 
 ### Working on the Virtual Stick Control feature
 
-Now, let's come back to the "SimulatorViewController.swift" file and implement the virtual stick feature. First, we create an NSNotificationCenter variable and invoke the `addObserver:selector:name:object:` method to observe the "StickChanged" notification, which is post from the **VirtualStickView**. When the notification is post, a selector method `onStickChanged:` will be invoked to send virtual stick flight control data as shown below:
+Now, let's come back to "SimulatorViewController.swift" and implement the virtual stick feature. First, we create an NSNotificationCenter variable and invoke the `addObserver:selector:name:object:` method to observe the "StickChanged" notification, which is posted from the **VirtualStickView**. When the notification is posted, a selector method `onStickChanged:` will be invoked to send virtual stick flight control data as shown below:
 
 ~~~swift
     override func viewDidLoad() {
@@ -253,54 +274,15 @@ In the code above, we implement the following features:
 
 ![](../images/tutorials-and-samples/iOS/SimulatorDemo/virtualStickControl.png)
 
- So the range of **x** and **y** value of `dir` variable is [-1, 1]. In the `setThrottle:andYaw:` method, we multiply `y` by -2 to change the range to [-2, 2] from bottom to top. Then multiply `x` by 30 to change the range to [-30, 30]. These range are tested by us to achieve a better control experience, you can take them for example. Moreover, you can learn the max and min values of control velocity for throttle and yaw in virtual stick control from the following const variables in `DJIFlightController`://TODO: where did these go??
-
- - Yaw control
-
-~~~swift
- /**
- *  Yaw control angular velocity MAX value is 100 degrees/second.
- */
-DJI_API_EXTERN const float DJIVirtualStickYawControlMaxAngularVelocity;
-/**
- *  Yaw control angular velocity MIN value is -100 degrees/second.
- */
-DJI_API_EXTERN const float DJIVirtualStickYawControlMinAngularVelocity;
-~~~
-
- - Throttle Control
-
-~~~swift
- /**
- *  The vertical control velocity MIN value is -4 m/s in `VirtualStickControlMode`. Positive velocity is up.
- */
-DJI_API_EXTERN const float DJIVirtualStickVerticalControlMinVelocity;
-/**
- *  The vertical control velocity MAX value is 4 m/s in VirtualStickControlMode. Positive velocity is up.
- */
-DJI_API_EXTERN const float DJIVirtualStickVerticalControlMaxVelocity;
-~~~
+The range of **x** and **y** in the `dir` variable is [-1, 1]. In the `setThrottle:andYaw:` method, we multiply `y` by -2 to change the range to [-2, 2] from bottom to top, then multiply `x` by 30 to change the range to [-30, 30]. These ranges are tested by us to achieve a more realistic control experience.
 
 Lastly, invoke the `updateVirtualStick` method to send the virtual stick control data.
 
-**3.** In the `setXVelocity:andYVelocity:` method, we multiply the `x` and `y` variables with `DJIVirtualStickRollPitchControlMaxVelocity` to change the range to [-15, 15] for pitch and roll axises velocity control, you can learn the max and min values of control velocity for roll and pitch in virtual stick control from the following const variables in `DJIFlightController`:
-
-~~~swift
-/**
- *  Roll/Pitch control velocity MAX value is 15m/s.
- */
-DJI_API_EXTERN const float DJIVirtualStickRollPitchControlMaxVelocity;
-/**
- *  Roll/Pitch control velocity MIN value is -15m/s.
- */
-DJI_API_EXTERN const float DJIVirtualStickRollPitchControlMinVelocity;
-~~~
-//TODO: where did all these DJI_API_EXTERN values go??
+**3.** In the `setXVelocity:andYVelocity:` method, we multiply the `x` and `y` variables with `DJIVirtualStickRollPitchControlMaxVelocity` to change the range to [-15, 15].
 
 Then invoke the `updateVirtualStick` method to send the virtual stick control data.
 
-**4.** In the `updateVirtualStick` method, we first create and initialize a `DJIVirtualStickFlightControlData` variable and assign its `pitch`, `roll`, `yaw` and `verticalThrottle` values with `self.mYVelocity`, `self.mXVelocity`, `self.mYaw` and `self.mThrottle`. Then invoke the `sendVirtualStickFlightControlData:withCompletion:` method of DJIFlightController to send the simulated virtual stick control data to the aircraft.//TODO: check if this is already included in updateVirtualStick, remove if so...
-
+**4.** In the `updateVirtualStick` method, we first create and initialize a `DJIVirtualStickFlightControlData` variable and assign its `pitch`, `roll`, `yaw` and `verticalThrottle` values with `self.mYVelocity`, `self.mXVelocity`, `self.mYaw` and `self.mThrottle`. Then invoke the `sendVirtualStickFlightControlData:withCompletion:` method of DJIFlightController to send the simulated virtual stick control data to the aircraft.
 Once you finished the above step, let's implement the **Enable Virtual Stick** and **Exit Virtual Stick** IBAction methods:
 
 ~~~swift
@@ -385,7 +367,7 @@ Similiarly, in the `onExitVirtualStickControlButtonClicked:` IBAction method, we
     }
 ~~~
 
-In the `viewWillAppear:` method, we first fetch the DJIFlightController object and update the `isSimulatorOn` variable, then invoke the `updateSimulatorUI` method to update the `simulatorButton` label. Furthermore, we use KVO here to observe the changes of `isSimulatorActive` variable value of `DJISimulator`. Then set the delegate of the DJIFlightController's DJISimulator to self(DJISimulatorViewController).
+In the `viewWillAppear:` method, we first fetch the DJIFlightController object and update the `isSimulatorOn` variable, then invoke the `updateSimulatorUI` method to update the `simulatorButton` label. Furthermore, we use KVO here to observe the changes of `isSimulatorActive` variable value of `DJISimulator`. Then set the delegate of the DJIFlightController's DJISimulator to self(SimulatorViewController).
 
 Next in the `viewWillDisappear:` method, we fetch the latest DJIFlightController object, then remove the observer of `isSimulatorActive`, and set the delegate of DJISimulator to nil.
 
@@ -426,7 +408,6 @@ Now, let's implement the `onSimulatorButtonClicked:` IBAction method as shown be
 Also, implement a helper method for fetching the flight controller and sending failure messages to an alert.
 
 ~~~swift
-
     func verboseFetchFlightController() -> DJIFlightController? {
         guard let flightController = fetchFlightController() else {
             showAlertWith("Failed to fetch flightController")
@@ -436,7 +417,7 @@ Also, implement a helper method for fetching the flight controller and sending f
     }
 ~~~
 
-In the code above, we first check if the simulator is started, if not, then create an initial aircraft location with CLLocationCoordinate2DMake(22, 113). Next invoke the `startWithLocation:updateFrequency:GPSSatellitesNumber:withCompletion:` method of `DJISimulator` with the frequency of 20 and GPS satellite number of 10 to start the simulator. For more details of this method, please check the following method's inline documentations:
+In the code above, we first check if the simulator is started, if not, then create an initial aircraft location with CLLocationCoordinate2DMake(22, 113). Next invoke the `startWithLocation:updateFrequency:GPSSatellitesNumber:withCompletion:` method of `DJISimulator` with the frequency of 20 and GPS satellite number of 10 to start the simulator. For more details of this method, please check the following method's inline documentation:
 
 ~~~objc
 /**
