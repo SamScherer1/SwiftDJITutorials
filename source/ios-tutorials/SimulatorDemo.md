@@ -2,7 +2,7 @@
 title: DJI Simulator Tutorial
 version: v4.14
 date: 2021-06-03
-github: https://github.com/SamScherer1/SimulatorDemo-Swift
+github: https://github.com/godfreynolan/SimulatorDemo-Swift
 keywords: [iOS simulator demo, VirtualStick, virtual stick, Swift]
 ---
 
@@ -12,7 +12,7 @@ keywords: [iOS simulator demo, VirtualStick, virtual stick, Swift]
 
 In this tutorial, you will learn how to use the DJISimulator in your Xcode project using DJI Mobile SDK. With the help of Virtual Stick control, you can input Virtual Stick flight control data and check the changes of simulator state in real time.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/SimulatorDemo-Swift).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/godfreynolan/SimulatorDemo-Swift).
 
 See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-SimulatorDemo) for an Objective C version. 
 

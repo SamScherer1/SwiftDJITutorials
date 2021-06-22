@@ -2,7 +2,7 @@
 title: Creating a Panorama Application
 version: v4.14
 date: 2021-06-16
-github: https://github.com/SamScherer1/SimulatorDemo-Swift
+github: https://github.com/godfreynolan/SimulatorDemo-Swift
 keywords: [iOS Panorama demo, OpenCV, panorama application, Swift]
 ---
 
@@ -14,7 +14,7 @@ In this tutorial, you will learn how to build a cool panorama app. With the help
 
 ![several tasks](../images/tutorials-and-samples/iOS/PanoramaDemo/workFlow.png)
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/SimulatorDemo-Swift).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/godfreynolan/SimulatorDemo-Swift).
 
 See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-PanoramaDemo) for an Objective C version. 
 

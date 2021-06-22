@@ -2,7 +2,7 @@
 title: DJI GEO System Tutorial (Swift)
 version: v4.14
 date: 2021-6-03
-github: https://github.com/SamScherer1/GeoDemoSwift
+github: https://github.com/godfreynolan/GeoDemoSwift
 keywords: [iOS GEODemo, GEO System, Fly Zone, Unlock, Authorization Fly Zone, NFZ, Swift]
 ---
 
@@ -12,7 +12,7 @@ keywords: [iOS GEODemo, GEO System, Fly Zone, Unlock, Authorization Fly Zone, NF
 
 In this tutorial, you will learn how to use the `DJIFlyZoneManager` and `DJIFlyZoneInformation` of DJI Mobile SDK to get the fly zone information, and unlock authorization fly zones.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/GeoDemoSwift).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/godfreynolan/GeoDemoSwift).
 
 See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-GEODemo) for an Objective C version. 
 

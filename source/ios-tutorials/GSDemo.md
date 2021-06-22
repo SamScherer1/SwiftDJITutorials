@@ -2,7 +2,7 @@
 title: Creating a MapView and Waypoint Application (Swift)
 version: v4.12
 date: 05/27/2021
-github: https://github.com/SamScherer1/iOS-GSDemo-Swift
+github: https://github.com/godfreynolan/iOS-GSDemo-Swift
 keywords: [iOS GSDemo, waypoint mission demo, Swift]
 ---
 
@@ -13,7 +13,7 @@ keywords: [iOS GSDemo, waypoint mission demo, Swift]
 In this tutorial, you will learn how to implement the DJIWaypoint Mission feature and get familiar with the usages of DJIMissionControl.
 Also you will know how to test the Waypoint Mission API with DJI Assistant 2 Simulator too. So let's get started!
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/iOS-GSDemo-Swift).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/godfreynolan/iOS-GSDemo-Swift).
 
 See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-GSDemo) for an Objective C version. 
 

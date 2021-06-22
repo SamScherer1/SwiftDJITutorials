@@ -2,7 +2,7 @@
 title: Getting Started with DJI UXSDK
 version: v4.14
 date: 5-25-2021
-github: https://github.com/SamScherer1/UXSDK-Demo-Swift
+github: https://github.com/godfreynolan/UXSDK-Demo-Swift
 keywords: [UXSDK, Default Layout, playback, preview photos and videos, download photos and videos, delete photos and videos]
 
 ---
@@ -13,7 +13,7 @@ keywords: [UXSDK, Default Layout, playback, preview photos and videos, download 
 
 In this tutorial, you will learn how to use DJI iOS UXSDK and DJI iOS Mobile SDK to easily create a fully functioning mini-DJI Go app, with standard DJI Go UIs and functionalities. By the end of this tutorial you will have an app that you can use to show the camera FPV view, check aircraft status, shoot photos, record videos and so on.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/UXSDK-Demo-Swift).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/godfreynolan/UXSDK-Demo-Swift).
 
 See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-UXSDKDemo) for an Objective C version. 
 
