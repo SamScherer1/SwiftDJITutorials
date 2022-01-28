@@ -15,7 +15,7 @@ In this tutorial, you will learn how to use the `DJIMediaManager` to interact wi
 
 In order for our app to manage photos and videos, however, it must first be able to take and record them. Fortunately, by using DJI iOS UX SDK, you can implement shooting photos and recording videos functionalities easily with standard DJI Go UIs.
 
-You can download the tutorial's final sample project from this [Github Page](https://github.com/SamScherer1/MediaManagerSwift).
+You can download the tutorial's final sample project from this [Github Page](https://github.com/godfreynolan/MediaManagerSwift).
 
 See [this Github Page](https://github.com/DJI-Mobile-SDK-Tutorials/iOS-MediaManagerDemo) for an Objective C version. 
 
